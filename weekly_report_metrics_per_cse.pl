@@ -242,9 +242,30 @@ my %cse_metrics;
 while( my $employee_rh = $employee_sth->fetchrow_hashref) {
 
     my $owner_name     = $employee_rh->{'owner_name'};
-    my $employee_email = $employee_rh->{'email'};
+    my $employee_email = $employee_rh->{'primary_email'};
 
-    my $manager_email  = $employee_rh->{'manager'};
+    # pull out a manager's cisco email address to replace his/her
+    # ironport email address
+    my $ironport_email = $employee_rh->{'manager'};
+
+    my $cisco_email_sql
+    = "
+    SELECT
+      primary_email
+    FROM
+      employees
+    WHERE
+      email = ?";
+    my $cisco_email_sth = $report_dbh->prepare($cisco_email_sql)
+    or die $report_dbh->errstr;
+
+    $cisco_email_sth->execute($ironport_email) or die $cisco_email_sth->errstr;
+    my $cisco_email_rh = $cisco_email_sth->fetchrow_hashref;
+
+    my $manager_email = '';
+    if( $cisco_email_rh ) {
+        $manager_email = $cisco_email_rh->{'primary_email'};
+    }
 
     # cse's name
     $cse_metrics{$owner_name}{'name'}    = $owner_name;
@@ -356,7 +377,7 @@ while( my $employee_rh = $employee_sth->fetchrow_hashref) {
 
         # Team CSE CSAT Average
         foreach my $manager ( keys %{$csat_avg_Team} ) {
-            if ($manager eq $manager_email) {
+            if ($manager eq $ironport_email) {
                 $cse_metrics{$owner_name}{'Extend'}{'Team CSE CSAT Avg'}
 {$week_end}
                   = $csat_avg_Team->{$manager}->{$week_end};
@@ -491,11 +512,6 @@ while( my $employee_rh = $employee_sth->fetchrow_hashref) {
         }
     }
 
-    # update mail addr from ironport to cisco for 'jsandl'
-    if ( $manager_email =~ /jsandl\@ironport.com/ ) {
-        $manager_email = "jsandl\@cisco.com";
-    }
-
     # manager's email
     $cse_metrics{$owner_name}{'manager'} = $manager_email;
 }
@@ -575,7 +591,9 @@ foreach my $per_cse_metrics ( keys %cse_metrics ) {
         $cc = '';
     }
     elsif ( $environment =~ /production/i ) {
-        $cc = $cse_metrics{$per_cse_metrics}{'manager'};
+        my $manager_email = $cse_metrics{$per_cse_metrics}{'manager'};
+
+        $cc = get_report_CClist($to, $manager_email, $report_dbh);
     }
 
     my $bcc;
@@ -751,8 +769,8 @@ sub tickets_reopened_KPI {
       AND Tickets.Status IN ('resolved') /* no rejected or deleted ticktes */ 
       AND Tickets.Queue IN (1, 25, 26, 38, 24, 8, 30, 21)
       /* CSR=1, SMB=25, ENT=26, ENC=38, WSA=24, BETA=8, CRES=30, PORTAL=21 */ 
-      AND Tickets.resolved >= ?
-      AND Tickets.resolved <  ?
+      AND T_reopen.Created >= ?
+      AND T_reopen.Created <  ?
     GROUP BY owner, week_ending
     ORDER BY week_ending desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
@@ -1729,6 +1747,87 @@ sub average_ticket_backlog_SPI {
 }
 
 #----------------------------------------------------------------------
+# figure out the email list that the metrics report should be CC'd to
+#----------------------------------------------------------------------
+sub get_report_CClist {
+
+    my $email         = shift;
+    my $manager_email = shift;
+    my $dbh           = shift;
+
+    # the CC'd list
+    my $reportCC = $manager_email;
+
+    # figure out the CSE's role from the employees table
+    my $employee_role = '';
+
+    my $role_sql = "SELECT role FROM employees WHERE primary_email = ?";
+    my $role_sth = $dbh->prepare($role_sql) or die $dbh->errstr;
+
+    $role_sth->execute($email) or die $role_sth->errstr;
+    my $role_rh = $role_sth->fetchrow_hashref;
+
+    if( $role_rh ) {
+        $employee_role = $role_rh->{'role'};
+    }
+
+    # figure out the manager's pk from the employees table
+    my $pk_sql = "SELECT pk FROM employees WHERE primary_email = ?";
+    my $pk_sth = $dbh->prepare($pk_sql) or die $dbh->errstr;
+
+    $pk_sth->execute($manager_email) or die $pk_sth->errstr;
+    my $pk_rh = $pk_sth->fetchrow_hashref;
+
+    if( $pk_rh ) {
+        my $pk = $pk_rh->{'pk'};
+
+        # figure out a manager's assistants' pks from the metrics_reportto
+        # table
+        my $metrics_sql
+        = "
+        SELECT
+          metrics_secondary
+        FROM
+          metrics_reportto
+        WHERE
+          del <> '1'
+          AND metrics_primary = ?
+          AND role = ?";
+        my $metrics_sth = $dbh->prepare($metrics_sql) or die $dbh->errstr;
+
+        $metrics_sth->execute($pk, $employee_role) or die $metrics_sth->errstr;
+        while( my $metrics_rh = $metrics_sth->fetchrow_hashref ) {
+
+            my $metrics_secondary = $metrics_rh->{'metrics_secondary'};
+
+            # figure out a manager's assistants' email addrs depend on their
+            # pks
+            my $reportto_sql
+            = "SELECT primary_email FROM employees WHERE pk = ?";
+            my $reportto_sth = $dbh->prepare($reportto_sql)
+              or die $dbh->errstr;
+
+            $reportto_sth->execute($metrics_secondary)
+              or die $$reportto_sth->errstr;
+            my $reportto_rh = $reportto_sth->fetchrow_hashref;
+
+            if( $reportto_rh ) {
+                if( defined $reportto_rh->{'primary_email'} ) {
+                    my $cc_email = $reportto_rh->{'primary_email'};
+
+                    if( $cc_email ne $email ) {
+                        $reportCC .= ", " . $cc_email;
+                    }
+                }
+            }
+        }
+
+    }
+
+    return $reportCC;
+}
+
+#----------------------------------------------------------------------
 # current datetime
 #----------------------------------------------------------------------
 sub current_datetime {
@@ -1848,7 +1947,7 @@ sub email_results {
 
     my ( $stat, $err ) = SendMail::multi_mail( \%mail_config );
     if ( !$stat ) {
-        die "could not send out ikb digest";
+        die "could not send out metrics report";
     }
 
 }
