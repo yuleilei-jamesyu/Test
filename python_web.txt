@@ -1,0 +1,115 @@
+Apache/lighttpd: 相当于一个request proxy，根据配置，把不同的请求转发给不同的server处理，例如静态的文件请求自己处理，这个时候它就像一个web server，对于fastcgi/python这样的请求转发给flup这样的Server/Gateway进行处理
+
+flup: 一个用python写的web server，也就是cgi中所谓的Server/Gateway，它负责接受apache/lighttpd转发的请求，并调用你写的程序 (application)，并将application处理的结果返回到apache/lighttpd
+
+fastcgi: apache/lighttpd的一个模块，虽然flup可以作为一个独立的web server使用，但是对于浏览器请求处理一般都交给 apache/lighttpd处理，然后由apache/lighttpd转发给flup处理，这样就需要一个东西来把apache/lighttpd 跟flup联系起来，这个东西就是fastcgi，它通过环境变量以及socket将客户端请求的信息传送给flup并接收flup返回的结果
+
+
+什么是CGI
+1. 定义： 
+CGI(Common Gateway Interface)是HTTP服务器与你的或其它机器上的程序进行“交谈”的一种工具，其程序须运行在网络服务器上。
+
+2. 功能： 
+绝大多数的CGI程序被用来解释处理来自表单的输入信息，并在服务器产生相应的处理，或将相应的信息反馈给浏览器。CGI程序使网页具有交互功能。
+
+3. 运行环境： 
+CGI程序在UNIX操作系统上CERN或NCSA格式的服务器上运行。 
+在其它操作系统（如：windows NT及windows95等）的服务器上也广泛地使用CGI程序，同时它也适用于各种类型机器
+
+4. CGI处理步骤： 
+⑴通过Internet把用户请求送到服务器。 
+⑵服务器接收用户请求并交给CGI程序处理。 
+⑶CGI程序把处理结果传送给服务器。 
+⑷服务器把结果送回到用户。
+
+5. CGI服务器配置： 
+CGI程序不是放在服务器上就能顺利运行，如果要想使其在服务器上顺利的运行并准确的处理用户的请求，则须对所使用的服务器进行必要的设置。 
+
+配置：根据所使用的服务器类型以及它的设置把CGI程序放在某一特定的目录中或使其带有特定的扩展名。 
+
+⑴CREN格式服务器的配置： 
+编辑CREN格式服务器的配置文件通常为/etc/httpd.conf/ 
+在文件中加入：Exec cgi-bin/*/home/www/cgi-bin/*.exec 
+命令中出现的第一个参数cgi-bin/*指出了在URL中出现的目录名字，并表示它出现在系统主机后的第一个目录中，如： 
+http://edgar.stern.nyn.edu/cgi-bin/ 
+命令中的第二个参数表示CGI程序目录放在系统中的真实路径。 
+CGI目录除了可以与网络文件放在同一目录中，也可以放在系统的其它目录中，但必须保证在你的系统中也具有同样的目录。在对服务器完成设置后，须重新启动服务器（除非HTTP服务器是用inetd启动的）。 
+
+⑵NCSA格式服务器的配置 
+在NCSA格式服务器上有两种方法进行设置： 
+①在srm.conf文件（通常在conf目录下）中加入： 
+Script Alias/cgi-bin/cgi-bin/ 
+Script Alias命令指出某一目录下的文件是可执行程序，且这个命令是用来执行这些程序的；此命令的两个参数与CERN格式服务器中的Exec命令的参数的含意一样。 
+②在srm.conf文件加入： 
+Add type application/x-httpd-cgi.cgi 
+此命令表示在服务器上增加了一种新的文件类型，其后第一个参数为CGI程序的MIME类型，第二个参数是文件的扩展名，表示以这一扩展名为扩展名的文件是CGI程序。 
+在用上述方法之一设置服务器后，都得重新启动服务器（除非HTTP服务器是用inetd启动的）。
+
+
+在一个项目中需要用到独立daemon的WebService，可惜众多Python Web Frameworks都是请求 - 响应模式，没有long-running, static对象，所以只好寻求更底层的FastCGI接口实现，所以用到了flup。
+flup是Python的FastCGI模块。
+
+flup官方说：flup不提供文档，flup源代码本身就是最好的文档，所以根据flup server示例写了个1.py代码：
+def myapp(environ, start_response):
+r=""
+for x in environ: #得到系统环境变量
+r+="%s\t%s\n" % (x, environ[x])
+start_response('200 OK', [('Content-Type', 'text/plain')]) #构造CGI返回
+return ['Flup works!\n'+r] #HTTP返回
+
+if __name__ == '__main__':
+From flup.server.fcgi import WSGIServer
+WSGIServer(myapp, multiplexed=True, bindAddress=('0.0.0.0', 8888)).run()
+
+本机用Python运行python 1.py，然后到服务器上修改lighttpd.conf：
+$SERVER["socket"] == "222.197.188.x:26143"{
+    fastcgi.server = (
+        "/tmp/est.fcgi" => (
+            "main" => (
+                "host" => "202.115.22.x",
+                "port" => 8888,
+                "check-local" => "disable",
+            )
+        ),
+    )
+    url.rewrite-once = (
+        "^(/.*)$" => "/tmp/est.fcgi$1",
+    )
+}
+访问http://222.197.188.x:26143，得到返回：
+
+Flup works!
+wsgi.multiprocess       False
+HTTP_COOKIE     __utma=246624529.1596407260.1175768082.1187816436.1191204550.32; rtime=13; ltime=1188404661285; cnzz_eid=67275885-; .DottextCookie=173F2250A7BDB4B830A6DF27874674C3B7C00C7F4A359FCD2C62EA724E2E31FB03A8F25B0924F52CACAF1B9FEEF16150C350D3DE180E079C2CB325A7A4A8E97366CBB3AFB1D512BF20F67EC98A525EC775110B6DA7A55554; ASP.NET_SessionId=dvixpx55c40z13bnniayri45; __utma=180314994.97063850.1192419814.1192419814.1192419814.1; __utmc=180314994; __utmz=180314994.1192419814.1.1.utmccn=(direct)|utmcsr=(direct)|utmcmd=(none)
+REDIRECT_STATUS 200
+SERVER_SOFTWARE lighttpd/1.4.18
+SCRIPT_NAME     /tmp/est.fcgi
+REQUEST_METHOD  GET
+PATH_INFO       /aadsfasddfasdf
+SERVER_PROTOCOL HTTP/1.1
+QUERY_STRING    a=123
+HTTP_USER_AGENT Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0; SLCC1; .NET CLR 2.0.50727; Media Center PC 5.0; .NET CLR 3.0.590; .NET CLR 3.5.20706)
+HTTP_CONNECTION Keep-Alive
+SERVER_NAME     grid2.dormforce.net:26143
+REMOTE_PORT     58343
+wsgi.url_scheme http
+PATH_TRANSLATED /var/www//aadsfasddfasdf
+SERVER_PORT     26143
+SERVER_ADDR     222.197.188.x
+DOCUMENT_ROOT   /var/www/
+SCRIPT_FILENAME /var/www/tmp/est.fcgi
+wsgi.input      
+HTTP_HOST       grid2.dormforce.net:26143
+wsgi.multithread        True
+HTTP_UA_CPU     x86
+REQUEST_URI     /aadsfasddfasdf?a=123
+HTTP_ACCEPT     */*
+wsgi.version    (1, 0)
+GATEWAY_INTERFACE       CGI/1.1
+wsgi.run_once   False
+wsgi.errors     
+REMOTE_ADDR     202.115.22.x
+HTTP_ACCEPT_LANGUAGE    en-US,zh-CN;q=0.5
+REDIRECT_URI    /tmp/est.fcgi/aadsfasddfasdf?a=123
+HTTP_ACCEPT_ENCODING    gzip, deflate
+flup works!
