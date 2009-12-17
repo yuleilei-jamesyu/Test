@@ -1,9 +1,11 @@
 #!/usr/bin/perl
+#----------------------------------------------------------------------
+# this script is used to send out per CSE performance report(weekly)
+#----------------------------------------------------------------------
 use strict;
 use Getopt::Std;
 use Data::Dumper;
 use Template;
-use Spreadsheet::WriteExcel;
 
 use lib '../../../utils/lib';
 use MyDB;
@@ -24,16 +26,13 @@ if ( (!defined $opts{'r'}) || (!defined $opts{'e'}) ) {
     usage();
     exit;
 }
-my $environment  = $opts{'e'};
+my $environment = $opts{'e'};
 
 # config files path
 my %env_opts = (
-    'development'
-        =>'../conf/quarterly_report_metrics_per_cse_development.conf',
-    'test'
-        => '../conf/quarterly_report_metrics_per_cse_test.conf',
-    'production'
-        => '../conf/quarterly_report_metrics_per_cse_production.conf',
+    'development' => '../conf/weekly_report_metrics_per_cse_development.conf',
+    'test'        => '../conf/weekly_report_metrics_per_cse_test.conf',
+    'production'  => '../conf/weekly_report_metrics_per_cse_production.conf',
 );
 
 my $config_file = $env_opts{$environment};
@@ -43,55 +42,6 @@ if ( !$stat ) {
     die $err;
 }
 my $config_vars_rh = $err;
-
-# Cisco quarter1
-my $quarter1_name  = $config_vars_rh->{'quarter1_name'};
-my $quarter1_start = $config_vars_rh->{'quarter1_start'};
-my $quarter1_end   = $config_vars_rh->{'quarter1_end'};
-
-die "quarter1_name not defined"  unless ( defined $quarter1_name );
-die "quarter1_start not defined" unless ( defined $quarter1_start );
-die "quarter1_end not defined"   unless ( defined $quarter1_end );
-
-# Cisco quarter2
-my $quarter2_name  = $config_vars_rh->{'quarter2_name'};
-my $quarter2_start = $config_vars_rh->{'quarter2_start'};
-my $quarter2_end   = $config_vars_rh->{'quarter2_end'};
-
-die "quarter2_name not defined"  unless ( defined $quarter2_name );
-die "quarter2_start not defined" unless ( defined $quarter2_start );
-die "quarter2_end not defined"   unless ( defined $quarter2_end );
-
-# Cisco quarter3
-my $quarter3_name  = $config_vars_rh->{'quarter3_name'};
-my $quarter3_start = $config_vars_rh->{'quarter3_start'};
-my $quarter3_end   = $config_vars_rh->{'quarter3_end'};
-
-die "quarter3_name not defined"  unless ( defined $quarter3_name );
-die "quarter3_start not defined" unless ( defined $quarter3_start );
-die "quarter3_end not defined"   unless ( defined $quarter3_end );
-
-# Cisco quarter4
-my $quarter4_name  = $config_vars_rh->{'quarter4_name'};
-my $quarter4_start = $config_vars_rh->{'quarter4_start'};
-my $quarter4_end   = $config_vars_rh->{'quarter4_end'};
-
-die "quarter4_name not defined"  unless ( defined $quarter4_name );
-die "quarter4_start not defined" unless ( defined $quarter4_start );
-die "quarter4_end not defined"   unless ( defined $quarter4_end );
-
-my $cisco_quarters = {
-                    $quarter1_name => [$quarter1_start, $quarter1_end],
-                    $quarter2_name => [$quarter2_start, $quarter2_end],
-                    $quarter3_name => [$quarter3_start, $quarter3_end],
-                    $quarter4_name => [$quarter4_start, $quarter4_end],
-                   };
-$cisco_quarters->{'quarters_order'} = [
-                                   $quarter1_name,
-                                   $quarter2_name,
-                                   $quarter3_name,
-                                   $quarter4_name
-                                   ];
 
 # templates of report email
 my $tmpl_dir    = $config_vars_rh->{'template_dir'};
@@ -104,13 +54,9 @@ die "report_tmpl not defined" unless ( defined $report_tmpl );
 die "header_tmpl not defined" unless ( defined $header_tmpl );
 die "footer_tmpl not defined" unless ( defined $footer_tmpl );
 
-# sql file paths to pull CSEs
+# sql file path to pull CSEs
 my $cses_sql_file = $config_vars_rh->{'cses_sql_path'};
 die "cses_sql_path not defined" unless ( defined $cses_sql_file );
-
-# data directory
-my $data_dir = $config_vars_rh->{'data_dir'};
-die "data_dir not defined" unless ( defined $data_dir );
 
 # db alias
 my $csat_db_alias   = $config_vars_rh->{'csat_db_alias'};
@@ -123,12 +69,11 @@ die "report_db_alias not defined" unless ( defined $report_db_alias );
 die "ikb_db_alias not defined"    unless ( defined $ikb_db_alias );
 die "rt_db_alias not defined"     unless ( defined $rt_db_alias );
 
-# email fields
+# email fields 
 my $subject_prefix = $config_vars_rh->{'subject_prefix'};
 my $email_from     = $config_vars_rh->{'from'};
 my $email_to       = $config_vars_rh->{'to'};
 my $email_bcc      = $config_vars_rh->{'bcc'};
-
 
 die "subject_prefix not subject" unless ( defined $subject_prefix );
 die "email_from not defined"     unless ( defined $email_from );
@@ -140,7 +85,7 @@ die "email_bcc not defined"      unless ( defined $email_bcc );
 #----------------------------------------------------------------------
 
 # CSAT DB
-( $stat, $err ) = MyDB::getDBH($csat_db_alias);
+my ( $stat, $err ) = MyDB::getDBH($csat_db_alias);
 
 if ( !$stat ) {
     die $err;
@@ -148,7 +93,7 @@ if ( !$stat ) {
 my $csat_dbh = $err;
 
 # report DB
-( $stat, $err ) = MyDB::getDBH($report_db_alias);
+my ( $stat, $err ) = MyDB::getDBH($report_db_alias);
 
 if ( !$stat ) {
     die $err;
@@ -156,7 +101,7 @@ if ( !$stat ) {
 my $report_dbh = $err;
 
 # iKbase DB
-( $stat, $err ) = MyDB::getDBH($ikb_db_alias);
+my ( $stat, $err ) = MyDB::getDBH($ikb_db_alias);
 
 if ( !$stat ) {
     die $err;
@@ -164,7 +109,7 @@ if ( !$stat ) {
 my $iKbase_dbh = $err;
 
 # RT DB
-( $stat, $err ) = MyDB::getDBH($rt_db_alias);
+my ( $stat, $err ) = MyDB::getDBH($rt_db_alias);
 
 if ( !$stat ) {
     die $err;
@@ -176,7 +121,7 @@ my $rt_dbh = $err;
 #----------------------------------------------------------------------
 
 # CSEs include this following roles: 'cse', 'e4e', 'sonata', 'lead'
-( $stat, $err ) = FileUtils::file2string(
+my ( $stat, $err ) = FileUtils::file2string(
     {   file             => $cses_sql_file,
         comment_flag     => 1,
         blank_lines_flag => 1
@@ -201,73 +146,88 @@ while ( my $cses_rh = $cses_sth->fetchrow_hashref ) {
     }
 }
 
+
+my $last_sunday = last_sunday_datetime(time);
+my @week_ends_order = (
+                       substr($last_sunday, 0, 10),
+                       substr(previous_sunday_datetime(time, 1), 0, 10),
+                       substr(previous_sunday_datetime(time, 2), 0, 10),
+                       substr(previous_sunday_datetime(time, 3), 0, 10),
+                       );
+
 # KPI - New Tickets
 my $new_tickets_KPI
-  = new_tickets_KPI($cisco_quarters, $report_dbh);
-
-# KPI - Tickets Touched
-my $tickets_touched_KPI
-  = tickets_touched_KPI($cisco_quarters, $report_dbh);
-
-# KPI - Tickets Resolved
-my $tickets_resolved_KPI
-  = tickets_resolved_KPI($cisco_quarters, $report_dbh);
+  = new_tickets_KPI($last_sunday, $report_dbh);
 
 # KPI - CSAT Avg
 my $csat_avg_KPI
-  = csat_avg_KPI($cisco_quarters, $csat_dbh);
+  = csat_avg_KPI($last_sunday, $csat_dbh);
 
-# Global CSAT Avg
+# Global CSE CSAT Avg
 my $csat_avg_Global
-  = csat_avg_Global($cisco_quarters, $csat_dbh);
+  = csat_avg_Global($last_sunday, $csat_dbh);
 
-# Team CSAT Avg
+# Team CSE CSAT Avg
 my $csat_avg_Team
-  = csat_avg_Team($cisco_quarters, \@cses, $report_dbh, $csat_dbh);
+  = csat_avg_Team(
+                  $last_sunday,
+                  \@week_ends_order,
+                  \@cses,
+                  $report_dbh,
+                  $csat_dbh
+                  );
+
+# KPI - Tickets Touched
+my $tickets_touched_KPI
+  = tickets_touched_KPI($last_sunday, $report_dbh);
+
+# KPI - Tickets Resolved
+my $tickets_resolved_KPI
+  = tickets_resolved_KPI($last_sunday, $report_dbh);
+
+# KPI - Tickets Reopened
+my $tickets_reopened_KPI
+  = tickets_reopened_KPI($last_sunday, $report_dbh);
 
 # KPI - New KB articles
 my $new_kb_articles_KPI
-  = new_kb_articles_KPI($cisco_quarters, $iKbase_dbh);
+  = new_kb_articles_KPI($last_sunday, $iKbase_dbh);
 
 # KPI - KB linking %
 my $kb_linking_KPI
-  = kb_linking_KPI($cisco_quarters, $rt_dbh, $report_dbh);
+  = kb_linking_KPI($last_sunday, $report_dbh, $rt_dbh); 
 
 # SPI - Avg Ticket Resolution Time
 my $avg_resolution_SPI
-  = avg_resolution_SPI($cisco_quarters, $report_dbh);
+  = avg_resolution_SPI($last_sunday, $report_dbh);
 
 # SPI - Avg Interactions Per Ticket
 my $avg_interactions_per_ticket_SPI
-  = avg_interactions_per_ticket_SPI($cisco_quarters, $report_dbh);
+  = avg_interactions_per_ticket_SPI($last_sunday, $report_dbh);
 
 # SPI - P1/P2 Tickets
 my $p1_p2_tickets_SPI
-  = p1_p2_tickets_SPI($cisco_quarters, $report_dbh);
+  = p1_p2_tickets_SPI($last_sunday, $report_dbh);
 
-# SPI - Management Escalated Tickets
+# SPI - Management Escalated Tickets 
 my $management_escalated_tickets_SPI
-  = management_escalated_tickets_SPI($cisco_quarters, $rt_dbh);
+  = management_escalated_tickets_SPI($last_sunday, $rt_dbh);
 
-# SPI - Low CSATs (1-2) on CSE questions
+# SPI - Low CSATs (1-2) on CSE questions 
 my $low_cast_questions_SPI
-  = low_cast_questions_SPI($cisco_quarters, $csat_dbh);
+  = low_cast_questions_SPI($last_sunday, $csat_dbh);
 
 # SPI - High CSATs (4-5) on CSE questions
 my $high_csat_questions_SPI
-  = high_csat_questions_SPI($cisco_quarters, $csat_dbh);
+  = high_csat_questions_SPI($last_sunday, $csat_dbh);
 
 # All CSATs (1-5) on CSE questions
 my $all_csat_questions_SPI
-  = all_csat_questions_SPI($cisco_quarters, $csat_dbh);
+  = all_csat_questions_SPI($last_sunday, $csat_dbh);
 
 # SPI - Total CSAT Surveys
 my $total_cast_surveys_SPI
-  = total_cast_surveys_SPI($cisco_quarters, $csat_dbh);
-
-# SPI - Current Ticket Backlog
-#my $current_ticket_backlog_SPI
-#  = current_ticket_backlog_SPI($cisco_quarters, $report_dbh);
+  = total_cast_surveys_SPI($last_sunday, $csat_dbh);
 
 #----------------------------------------------------------------------
 # use employees table to filter metric hashes and combine them into a 
@@ -275,16 +235,18 @@ my $total_cast_surveys_SPI
 #----------------------------------------------------------------------
 my $employee_sth = $report_dbh->prepare($employee_sql)
   or die $report_dbh->errstr;
+
 $employee_sth->execute() or die $employee_sth->errstr;
 
 my %cse_metrics;
 while( my $employee_rh = $employee_sth->fetchrow_hashref) {
+
     my $owner_name     = $employee_rh->{'owner_name'};
     my $employee_email = $employee_rh->{'primary_email'};
 
     # pull out a manager's cisco email address to replace his/her
     # ironport email address
-    my $ironport_email  = $employee_rh->{'manager'};
+    my $ironport_email = $employee_rh->{'manager'};
 
     my $cisco_email_sql
     = "
@@ -311,14 +273,13 @@ while( my $employee_rh = $employee_sth->fetchrow_hashref) {
     # cse's email
     $cse_metrics{$owner_name}{'email'}   = $employee_email;
 
-    # quarter's name
-    @{$cse_metrics{$owner_name}{'quarters_order'}}
-      = @{$cisco_quarters->{'quarters_order'}};
+    # Weekends' order 
+    @{$cse_metrics{$owner_name}{'week_ends_order'}}  = @week_ends_order;
 
     # Extend Metrics' order
     @{$cse_metrics{$owner_name}{'Extend'}{'metrics_order'}} = (
-        'Global CSAT Avg',
-        'Team CSAT Avg',
+        'Global CSE CSAT Avg',
+        'Team CSE CSAT Avg',
     );
 
     # KPI Metrics' order
@@ -344,225 +305,211 @@ while( my $employee_rh = $employee_sth->fetchrow_hashref) {
         'All CSATs',
 
         'Total CSAT Surveys',
-#        'Current Ticket Backlog',
 #        'Average Ticket Backlog',
     );
 
     # consolidate a hash that contains the cse's metrics data
-    foreach my $quarter ( @{$cisco_quarters->{'quarters_order'}} ) {
+    foreach my $week_end ( @{$cse_metrics{$owner_name}{'week_ends_order'}} ) {
 
         # New Tickets
-        if ( exists $new_tickets_KPI->{$owner_name}->{'New Tickets'}
-->{$quarter} ) {
-            $cse_metrics{$owner_name}{'KPI'}{'New Tickets'}{$quarter}
-              = $new_tickets_KPI->{$owner_name}->{'New Tickets'}->{$quarter};
+        if ( exists $new_tickets_KPI->{$owner_name}->{'New Tickets'}->
+{$week_end} ) {
+            $cse_metrics{$owner_name}{'KPI'}{'New Tickets'}{$week_end}
+              = $new_tickets_KPI->{$owner_name}->{'New Tickets'}->{$week_end};
         }
         else {
-            $cse_metrics{$owner_name}{'KPI'}{'New Tickets'}{$quarter}
+            $cse_metrics{$owner_name}{'KPI'}{'New Tickets'}{$week_end}
               = 0;
         }
 
         # Tickets Touched
         if ( exists $tickets_touched_KPI->{$owner_name}->{'Tickets Touched'}
-->{$quarter} ) {
-            $cse_metrics{$owner_name}{'KPI'}{'Tickets Touched'}{$quarter}
+->{$week_end} ) {
+            $cse_metrics{$owner_name}{'KPI'}{'Tickets Touched'}{$week_end}
               = $tickets_touched_KPI->{$owner_name}->{'Tickets Touched'}
-->{$quarter};
+->{$week_end};
         }
         else {
-            $cse_metrics{$owner_name}{'KPI'}{'Tickets Touched'}{$quarter}
+            $cse_metrics{$owner_name}{'KPI'}{'Tickets Touched'}{$week_end}
               = 0;
         }
 
         # Tickets Resolved
         if ( exists $tickets_resolved_KPI->{$owner_name}->{'Tickets Resolved'}
-->{$quarter} ) {
-            $cse_metrics{$owner_name}{'KPI'}{'Tickets Resolved'}{$quarter}
+->{$week_end} ) {
+            $cse_metrics{$owner_name}{'KPI'}{'Tickets Resolved'}{$week_end}
               = $tickets_resolved_KPI->{$owner_name}->{'Tickets Resolved'}
-->{$quarter};
+->{$week_end};
         }
         else {
-            $cse_metrics{$owner_name}{'KPI'}{'Tickets Resolved'}{$quarter}
+            $cse_metrics{$owner_name}{'KPI'}{'Tickets Resolved'}{$week_end}
               = 0;
         }
 
         # Tickets Reopened
-        if ( exists $csat_avg_KPI->{$owner_name}->{'Tickets Reopened'}
-->{$quarter} ) {
-            $cse_metrics{$owner_name}{'KPI'}{'Tickets Reopened'}{$quarter}
-              = $csat_avg_KPI->{$owner_name}->{'Tickets Reopened'}->{$quarter};
+        if ( exists $tickets_reopened_KPI->{$owner_name}->{'Tickets Reopened'}
+->{$week_end} ) {
+            $cse_metrics{$owner_name}{'KPI'}{'Tickets Reopened'}{$week_end}
+              = $tickets_reopened_KPI->{$owner_name}->{'Tickets Reopened'}
+->{$week_end};
         }
         else {
-            $cse_metrics{$owner_name}{'KPI'}{'CSAT Avg'}{$quarter}
+            $cse_metrics{$owner_name}{'KPI'}{'Tickets Reopened'}{$week_end}
               = 0;
         }
 
-        # CSAT Average
-        if ( exists $csat_avg_KPI->{$owner_name}->{'CSAT Avg'}->{$quarter} ) {
-            $cse_metrics{$owner_name}{'KPI'}{'CSAT Avg'}{$quarter}
-              = $csat_avg_KPI->{$owner_name}->{'CSAT Avg'}->{$quarter};
+        # CSAT Avg
+        if ( exists $csat_avg_KPI->{$owner_name}->{'CSAT Avg'}->{$week_end} ) {
+            $cse_metrics{$owner_name}{'KPI'}{'CSAT Avg'}{$week_end}
+              = $csat_avg_KPI->{$owner_name}->{'CSAT Avg'}->{$week_end};
         }
         else {
-            $cse_metrics{$owner_name}{'KPI'}{'CSAT Avg'}{$quarter}
+            $cse_metrics{$owner_name}{'KPI'}{'CSAT Avg'}{$week_end}
               = 0;
         }
 
-        # Global CSAT Average
-        if ( exists $csat_avg_Global->{$quarter} ) {
-            $cse_metrics{$owner_name}{'Extend'}{'Global CSAT Avg'}{$quarter}
-              = $csat_avg_Global->{$quarter};
-        }
-        else {
-            $cse_metrics{$owner_name}{'Extend'}{'Global CSAT Avg'}{$quarter}
-              = 0;
+        # Global CSE CSAT Average
+        if ( exists $csat_avg_Global->{$week_end} ) {
+            $cse_metrics{$owner_name}{'Extend'}{'Global CSE CSAT Avg'}
+{$week_end}
+              = $csat_avg_Global->{$week_end}
         }
 
-        # Team CSAT Average
+        # Team CSE CSAT Average
         foreach my $manager ( keys %{$csat_avg_Team} ) {
             if ($manager eq $ironport_email) {
-                $cse_metrics{$owner_name}{'Extend'}{'Team CSAT Avg'}{$quarter}
-                  = $csat_avg_Team->{$manager}->{$quarter};
+                $cse_metrics{$owner_name}{'Extend'}{'Team CSE CSAT Avg'}
+{$week_end}
+                  = $csat_avg_Team->{$manager}->{$week_end};
 
                 last;
             }
         }
 
-        # New KB Articles
+        # New KB articles
         if ( exists $new_kb_articles_KPI->{$owner_name}->{'New KB articles'}
-->{$quarter} ) {
-            $cse_metrics{$owner_name}{'KPI'}{'New KB articles'}{$quarter}
+->{$week_end} ) {
+            $cse_metrics{$owner_name}{'KPI'}{'New KB articles'}{$week_end}
               = $new_kb_articles_KPI->{$owner_name}->{'New KB articles'}
-->{$quarter};
+->{$week_end};
         }
         else {
-            $cse_metrics{$owner_name}{'KPI'}{'New KB articles'}{$quarter}
+            $cse_metrics{$owner_name}{'KPI'}{'New KB articles'}{$week_end}
               = 0;
         }
 
         # KB linking %
         if ( exists $kb_linking_KPI->{$owner_name}->{'KB linking %'}
-->{$quarter} ) {
-            $cse_metrics{$owner_name}{'KPI'}{'KB linking %'}{$quarter}
-              = $kb_linking_KPI->{$owner_name}->{'KB linking %'}
-->{$quarter};
+->{$week_end} ) {
+            $cse_metrics{$owner_name}{'KPI'}{'KB linking %'}{$week_end}
+              = $kb_linking_KPI->{$owner_name}->{'KB linking %'}->{$week_end};
         }
         else {
-            $cse_metrics{$owner_name}{'KPI'}{'KB linking %'}{$quarter}
+            $cse_metrics{$owner_name}{'KPI'}{'KB linking %'}{$week_end}
               = 0;
         }
 
         # Avg Ticket Resolution Time
-        if ( exists $avg_resolution_SPI->{$owner_name}
-->{'Avg Ticket Resolution Time'}->{$quarter} ) {
+        if ( exists $avg_resolution_SPI->{$owner_name}->
+{'Avg Ticket Resolution Time'}->{$week_end} ) {
             $cse_metrics{$owner_name}{'SPI'}{'Avg Ticket Resolution Time'}
-{$quarter}
-              = $avg_resolution_SPI->{$owner_name}
-->{'Avg Ticket Resolution Time'}->{$quarter};
+{$week_end}
+              = $avg_resolution_SPI->{$owner_name}->
+{'Avg Ticket Resolution Time'}->{$week_end};
         }
         else {
             $cse_metrics{$owner_name}{'SPI'}{'Avg Ticket Resolution Time'}
-{$quarter}
+{$week_end}
               = 0;
         }
 
         # Avg Interactions Per Ticket
-        if ( exists $avg_interactions_per_ticket_SPI->{$owner_name}
-->{'Avg Interactions Per Ticket'}->{$quarter} ) {
+        if ( exists $avg_interactions_per_ticket_SPI->{$owner_name}->
+{'Avg Interactions Per Ticket'}->{$week_end} ) {
             $cse_metrics{$owner_name}{'SPI'}{'Avg Interactions Per Ticket'}
-{$quarter}
-              = $avg_interactions_per_ticket_SPI->{$owner_name}
-->{'Avg Interactions Per Ticket'}->{$quarter};
+{$week_end}
+              = $avg_interactions_per_ticket_SPI->{$owner_name}->
+{'Avg Interactions Per Ticket'}->{$week_end};
         }
         else {
             $cse_metrics{$owner_name}{'SPI'}{'Avg Interactions Per Ticket'}
-{$quarter}
+{$week_end}
               = 0;
         }
 
         # P1/P2 Tickets
         if ( exists $p1_p2_tickets_SPI->{$owner_name}->{'P1/P2 Tickets'}
-->{$quarter} ) {
-            $cse_metrics{$owner_name}{'SPI'}{'P1/P2 Tickets'}{$quarter}
-              = $p1_p2_tickets_SPI->{$owner_name}->{'P1/P2 Tickets'}
-->{$quarter};
+->{$week_end} ) {
+            $cse_metrics{$owner_name}{'SPI'}{'P1/P2 Tickets'}{$week_end}
+              = $p1_p2_tickets_SPI->{$owner_name}->{'P1/P2 Tickets'}->
+{$week_end};
         }
         else {
-            $cse_metrics{$owner_name}{'SPI'}{'P1/P2 Tickets'}{$quarter}
+            $cse_metrics{$owner_name}{'SPI'}{'P1/P2 Tickets'}{$week_end}
               = 0;
         }
 
         # Management Escalated Tickets
-        if ( exists $management_escalated_tickets_SPI->{$owner_name}
-->{'Management Escalated Tickets'}->{$quarter} ) {
+        if ( exists $management_escalated_tickets_SPI->{$owner_name}->
+{'Management Escalated Tickets'}->{$week_end} ) {
             $cse_metrics{$owner_name}{'SPI'}{'Management Escalated Tickets'}
-{$quarter}
-              = $management_escalated_tickets_SPI->{$owner_name}
-->{'Management Escalated Tickets'}->{$quarter};
+{$week_end}
+              = $management_escalated_tickets_SPI->{$owner_name}->
+{'Management Escalated Tickets'}->{$week_end};
         }
         else {
             $cse_metrics{$owner_name}{'SPI'}{'Management Escalated Tickets'}
-{$quarter}
+{$week_end}
               = 0;
         }
 
-        # Low CSATs (1-2) on CSE questions
+        # Low CSATs
         if ( exists $low_cast_questions_SPI->{$owner_name}->{'Low CSATs'}
-->{$quarter} ) {
-            $cse_metrics{$owner_name}{'SPI'}{'Low CSATs'}{$quarter}
+->{$week_end} ) {
+            $cse_metrics{$owner_name}{'SPI'}{'Low CSATs'}{$week_end}
               = $low_cast_questions_SPI->{$owner_name}->{'Low CSATs'}
-->{$quarter};
+->{$week_end};
         }
         else {
-            $cse_metrics{$owner_name}{'SPI'}{'Low CSATs'}{$quarter}
+            $cse_metrics{$owner_name}{'SPI'}{'Low CSATs'}{$week_end}
               = 0;
         }
 
-        # High CSATs (4-5) on CSE questions
+        # High CSATs
         if ( exists $high_csat_questions_SPI->{$owner_name}->{'High CSATs'}
-->{$quarter} ) {
-            $cse_metrics{$owner_name}{'SPI'}{'High CSATs'}{$quarter}
+->{$week_end} ) {
+            $cse_metrics{$owner_name}{'SPI'}{'High CSATs'}{$week_end}
               = $high_csat_questions_SPI->{$owner_name}->{'High CSATs'}
-->{$quarter};
+->{$week_end};
         }
         else {
-            $cse_metrics{$owner_name}{'SPI'}{'High CSATs'}{$quarter}
+            $cse_metrics{$owner_name}{'SPI'}{'High CSATs'}{$week_end}
               = 0;
         }
 
-        # All CSATs (1-5) on CSE questions
+        # All CSATs
         if ( exists $all_csat_questions_SPI->{$owner_name}->{'All CSATs'}
-->{$quarter} ) {
-            $cse_metrics{$owner_name}{'SPI'}{'All CSATs'}{$quarter}
+->{$week_end} ) {
+            $cse_metrics{$owner_name}{'SPI'}{'All CSATs'}{$week_end}
               = $all_csat_questions_SPI->{$owner_name}->{'All CSATs'}
-->{$quarter};
+->{$week_end};
         }
         else {
-            $cse_metrics{$owner_name}{'SPI'}{'All CSATs'}{$quarter}
+            $cse_metrics{$owner_name}{'SPI'}{'All CSATs'}{$week_end}
               = 0;
         }
 
         # Total CSAT Surveys
-        if ( exists $total_cast_surveys_SPI->{$owner_name}
-->{'Total CSAT Surveys'}->{$quarter} ) {
-            $cse_metrics{$owner_name}{'SPI'}{'Total CSAT Surveys'}{$quarter}
-              = $total_cast_surveys_SPI->{$owner_name}->{'Total CSAT Surveys'}
-->{$quarter};
+        if ( exists $total_cast_surveys_SPI->{$owner_name}->
+{'Total CSAT Surveys'}->{$week_end} ) {
+            $cse_metrics{$owner_name}{'SPI'}{'Total CSAT Surveys'}{$week_end}
+              = $total_cast_surveys_SPI->{$owner_name}->{'Total CSAT Surveys'}->
+{$week_end};
         }
         else {
-            $cse_metrics{$owner_name}{'SPI'}{'Total CSAT Surveys'}{$quarter}
+            $cse_metrics{$owner_name}{'SPI'}{'Total CSAT Surveys'}{$week_end}
               = 0;
         }
-
-#    if ( exists $current_ticket_backlog_SPI->{$owner_name}
-#->{'Current Ticket Backlog'}->{$quarter} ) {
-#        $cse_metrics{$owner_name}{'SPI'}{'Current Ticket Backlog'}{$quarter}
-#          = $current_ticket_backlog_SPI->{$owner_name}->
-#{'Current Ticket Backlog'}->{$quarter};
-#    }
-#    else {
-#        $cse_metrics{$owner_name}{'SPI'}{'Current Ticket Backlog'}{$quarter}
-#           = 0;
-#    }
     }
 
     # manager's email
@@ -580,39 +527,41 @@ my $tt = Template->new(
 
 foreach my $per_cse_metrics ( keys %cse_metrics ) {
 
-    # divide the count of 'KB linking' tickets by the count of resolved tickets
-    # to figure out 'KB Linking %' for per CSE
-    foreach my $quarter ( @{$cse_metrics{$per_cse_metrics}{'quarters_order'}} )
+    # Calculate KB Linking % for per CSE
+    foreach my $week_end ( @{$cse_metrics{$per_cse_metrics}{'week_ends_order'}})
     {
         if ( ( exists $cse_metrics{$per_cse_metrics}{'KPI'}{'KB linking %'}
-{$quarter} )
-               && ( exists $cse_metrics{$per_cse_metrics}{'KPI'}
-{'Tickets Resolved'}{$quarter} ) ) {
+{$week_end} )
+            && ( exists $cse_metrics{$per_cse_metrics}{'KPI'}
+{'Tickets Resolved'}{$week_end} ) )
+        {
 
             my $kb_linking
-              = $cse_metrics{$per_cse_metrics}{'KPI'}{'KB linking %'}{$quarter};
+              = $cse_metrics{$per_cse_metrics}{'KPI'}{'KB linking %'}
+{$week_end};
 
             my $tickets_resolved
               = $cse_metrics{$per_cse_metrics}{'KPI'}{'Tickets Resolved'}
-{$quarter};
+{$week_end};
 
             my $kb_linking_percent;
+
             if ( $tickets_resolved != 0 ) {
-                  $kb_linking_percent =  ($kb_linking / $tickets_resolved) * 100;
+                $kb_linking_percent =  ($kb_linking / $tickets_resolved) * 100;
             }
             else {
-                  $kb_linking_percent = 0;
+                $kb_linking_percent = 0;
             }
 
             if ( $kb_linking_percent != 0 ) {
                 $kb_linking_percent = sprintf("%.2f", $kb_linking_percent);
             }
 
-            $cse_metrics{$per_cse_metrics}{'KPI'}{'KB linking %'}{$quarter}
-              = $kb_linking_percent;
+            $cse_metrics{$per_cse_metrics}{'KPI'}{'KB linking %'}{$week_end}
+               = $kb_linking_percent
         }
         else {
-            $cse_metrics{$per_cse_metrics}{'KPI'}{'KB linking %'}{$quarter}
+            $cse_metrics{$per_cse_metrics}{'KPI'}{'KB linking %'}{$week_end}
               = 0;
         }
     }
@@ -627,18 +576,6 @@ foreach my $per_cse_metrics ( keys %cse_metrics ) {
     $tt->process($report_tmpl, \%input_vars, \$output);
 
     my $digest = get_email($header_tmpl, $output, $footer_tmpl);
-
-    # Generate *.xls attachment
-    my @first_row = get_options_per_cse($cse_metrics{$per_cse_metrics});
-    my $per_cse_row = get_row_per_cse($cse_metrics{$per_cse_metrics});
-    #print Dumper($per_cse_row);
-
-    my $attachment_file
-        = make_excel_for_each_cse(
-                                  \@first_row,
-                                  $per_cse_row,
-                                  $data_dir,
-                                  );
 
     # Configure to, cc depends on the environment 
     my $to;
@@ -669,11 +606,8 @@ foreach my $per_cse_metrics ( keys %cse_metrics ) {
 
     my $subject = $subject_prefix . $cse_metrics{$per_cse_metrics}{'name'};
 
-    # output report email 
-    email_results(
-                  $email_from,
-                  $to, $cc, $bcc, $subject, $digest, $attachment_file);
-    unlink($attachment_file);
+    # output the report email
+    email_results($email_from, $to, $cc, $bcc, $subject, $digest);
 
     #last;
 }
@@ -688,39 +622,33 @@ foreach my $per_cse_metrics ( keys %cse_metrics ) {
 #----------------------------------------------------------------------
 sub new_tickets_KPI {
 
-    my $quarters = shift;
-    my $dbh      = shift;
+    my ($report_stop, $dbh) = @_;
 
     my $sql = "SELECT
                  IF(LOCATE('\@', owner) = 0,
                    owner, LEFT(owner, LOCATE('\@', owner) - 1)
                  ) AS owner,
+                 week_ending,
                  COUNT(*) AS total
                FROM
                  case_details
                WHERE 1
                  AND created >= ? 
                  AND created < ? 
-               GROUP BY owner";
+               GROUP BY owner, week_ending
+               ORDER BY week_ending desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute($report_start, $report_stop) or die $sth->errstr;
+
     my %new_tickets_metric;
-    foreach my $quarter (keys %{$quarters}) {
+    while( my $rh = $sth->fetchrow_hashref ) {
+        my $owner       = $rh->{'owner'};
+        my $week_ending = substr($rh->{'week_ending'}, 0, 10);
+        my $total       = $rh->{'total'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute($quarter_start, $quarter_end) or die $sth->errstr;
-
-        while( my $rh = $sth->fetchrow_hashref ) {
-            my $owner       = $rh->{'owner'};
-            my $total       = $rh->{'total'};
-
-            $new_tickets_metric{$owner}{'New Tickets'}{$quarter} = $total;
-        }
-
+        $new_tickets_metric{$owner}{'New Tickets'}{$week_ending} = $total;
     }
 
     return \%new_tickets_metric;
@@ -731,48 +659,34 @@ sub new_tickets_KPI {
 #----------------------------------------------------------------------
 sub tickets_touched_KPI {
 
-    my $quarters = shift;
-    my $dbh      = shift;
-
-    my $set_big_sql = "SET SQL_BIG_SELECTS=1";
-    my $set_big_sth = $dbh->prepare($set_big_sql) or die $dbh->errstr;
-    $set_big_sth->execute() or die $set_big_sth->errstr;
+    my ($report_stop, $dbh) = @_;
 
     my $sql = "SELECT
-                 IF(LOCATE('\@', cse.email) = 0,
-                   cse.email, LEFT(cse.email, LOCATE('\@', cse.email) - 1)
+                 IF(LOCATE('\@', cse) = 0,
+                   cse, LEFT(cse, LOCATE('\@', cse) - 1)
                  ) AS owner,
-                 COUNT(DISTINCT(Transactions.Ticket)) AS cases_touched 
-               FROM 
-                 employees cse
-                   LEFT JOIN rt3.Transactions Transactions ON 
-                     cse.id = Transactions.Creator 
-               WHERE 
-                 Transactions.Type IN ('Create', 'Correspond', 'Comment') 
-                 AND Transactions.Created >= ?
-                 AND Transactions.Created < ?
-               GROUP BY owner";
-
+                 week_ending,
+                 cases_touched
+               FROM
+                 interactions
+               WHERE 1
+                 AND week_ending > ?
+                 AND week_ending <= ?
+               GROUP BY cse, week_ending
+               ORDER BY week_ending desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute($report_start, $report_stop) or die $sth->errstr;
+
     my %tickets_touched_metric;
-    foreach my $quarter ( keys %{$quarters} ) {
+    while( my $rh = $sth->fetchrow_hashref ) {
+        my $owner         = $rh->{'owner'}; 
+        my $week_ending   = substr($rh->{'week_ending'}, 0, 10);
+        my $cases_touched = $rh->{'cases_touched'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute($quarter_start, $quarter_end) or die $sth->errstr;
-
-        while( my $rh = $sth->fetchrow_hashref ) {
-            my $owner         = $rh->{'owner'}; 
-            my $cases_touched = $rh->{'cases_touched'};
-
-            $tickets_touched_metric{$owner}{'Tickets Touched'}{$quarter}
-              = $cases_touched;
-        }
-
+        $tickets_touched_metric{$owner}{'Tickets Touched'}{$week_ending}
+          = $cases_touched;
     }
 
     return \%tickets_touched_metric;
@@ -783,8 +697,7 @@ sub tickets_touched_KPI {
 #----------------------------------------------------------------------
 sub tickets_resolved_KPI {
 
-    my $quarters = shift;
-    my $dbh      = shift;
+    my ($report_stop, $dbh) = @_;
 
     my $sql
     = "
@@ -792,6 +705,11 @@ sub tickets_resolved_KPI {
       IF(LOCATE('\@', owner) = 0,
         owner, LEFT(owner, LOCATE('\@', owner) - 1)
       ) AS owner_name,
+      CONCAT(
+        LEFT(DATE_ADD(reso_timestamp
+            , INTERVAL (8 - DAYOFWEEK(reso_timestamp)) DAY)
+        , 10)
+      , ' 00:00:00') AS week_end,
       COUNT(case_number) AS tickets_resolved
     FROM
       case_details
@@ -799,27 +717,21 @@ sub tickets_resolved_KPI {
       AND reso_timestamp >= ?
       AND reso_timestamp < ?
       AND status = 'resolved'
-    GROUP BY owner";
+    GROUP BY owner, week_end
+    ORDER BY week_end desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute($report_start, $report_stop) or die $sth->errstr;
+
     my %tickets_resolved_metric;
-    foreach my $quarter ( keys %{$quarters} ) {
+    while( my $rh = $sth->fetchrow_hashref ) {
+        my $owner            = $rh->{'owner_name'};
+        my $week_ending      = substr($rh->{'week_end'}, 0, 10);
+        my $tickets_resolved = $rh->{'tickets_resolved'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute($quarter_start, $quarter_end) or die $sth->errstr;
-
-        while( my $rh = $sth->fetchrow_hashref ) {
-            my $owner            = $rh->{'owner_name'};
-            my $tickets_resolved = $rh->{'tickets_resolved'};
-
-            $tickets_resolved_metric{$owner}{'Tickets Resolved'}{$quarter}
-              = $tickets_resolved;
-        }
-
+        $tickets_resolved_metric{$owner}{'Tickets Resolved'}{$week_ending}
+          = $tickets_resolved;
     }
 
     return \%tickets_resolved_metric;
@@ -830,12 +742,7 @@ sub tickets_resolved_KPI {
 #----------------------------------------------------------------------
 sub tickets_reopened_KPI {
 
-    my $quarters = shift;
-    my $dbh    = shift;
-
-    my $set_big_sql = "SET SQL_BIG_SELECTS=1";
-    my $set_big_sth = $dbh->prepare($set_big_sql) or die $dbh->errstr;
-    $set_big_sth->execute() or die $set_big_sth->errstr;
+    my ($report_stop, $dbh) = @_;
 
     my $sql
     = "
@@ -843,6 +750,11 @@ sub tickets_reopened_KPI {
       IF(LOCATE('\@', cse.email) = 0,
         cse.email, LEFT(cse.email, LOCATE('\@', cse.email) - 1)
       ) AS owner,
+      CONCAT(
+        LEFT(DATE_ADD(Tickets.resolved,
+            INTERVAL (8 - DAYOFWEEK(Tickets.resolved)) DAY)
+        , 10)
+      , ' 00:00:00') AS week_ending,
       SUM(T_reopen.NewValue = 'open') as tickets_reopened
     FROM 
       rt3.Tickets Tickets
@@ -859,165 +771,156 @@ sub tickets_reopened_KPI {
       /* CSR=1, SMB=25, ENT=26, ENC=38, WSA=24, BETA=8, CRES=30, PORTAL=21 */ 
       AND T_reopen.Created >= ?
       AND T_reopen.Created <  ?
-    GROUP BY owner";
+    GROUP BY owner, week_ending
+    ORDER BY week_ending desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute($report_start, $report_stop) or die $sth->errstr;
+
     my %tickets_reopened_metric;
-    foreach my $quarter ( keys %{$quarters}) {
+    while( my $rh = $sth->fetchrow_hashref ) {
+        my $owner            = $rh->{'owner'};
+        my $week_ending      = substr($rh->{'week_ending'}, 0, 10);
+        my $tickets_reopened = $rh->{'tickets_reopened'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute($quarter_start, $quarter_end) or die $sth->errstr;
-
-        while( my $rh = $sth->fetchrow_hashref ) {
-            my $owner            = $rh->{'owner'};
-            my $tickets_reopened = $rh->{'tickets_reopened'};
-
-            if ( defined $tickets_reopened ) {
-                $tickets_reopened_metric{$owner}{'Tickets Reopened'}{$quarter}
-                  = $tickets_reopened;
-            }
+        if ( defined $tickets_reopened ) {
+            $tickets_reopened_metric{$owner}{'Tickets Reopened'}{$week_ending}
+              = $tickets_reopened;
         }
-
     }
 
     return \%tickets_reopened_metric;
 }
 
 #----------------------------------------------------------------------
-# CSAT Avg  
+# CSAT Avg
 #----------------------------------------------------------------------
 sub csat_avg_KPI {
 
-    my $quarters = shift;
-    my $dbh      = shift; 
+    my ($report_stop, $dbh) = @_;
 
     my $sql
     = "
     SELECT
       e.owner,
+      e.week_ending,
       ROUND(
       (SUM(e.csat) / SUM(e.number)), 2) AS csat
     FROM
         (
         SELECT
           owner,
+          CONCAT(
+            LEFT(DATE_ADD(qp_ts, INTERVAL (8 - DAYOFWEEK(qp_ts)) DAY
+                ), 10
+            ), ' 00:00:00'
+          ) AS week_ending,
           (
-           ((
-             SUM(q_experience) +
-             SUM(q_courteousn) +
-             SUM(q_expertise)  +
-             SUM(q_responsive) +
-             SUM(q_timeliness) +
-             SUM(q_completens) 
-            ) / (  6 )
-           ) / COUNT(*)
+            ((
+              SUM(q_experience) +
+              SUM(q_courteousn) +
+              SUM(q_expertise)  +
+              SUM(q_responsive) +
+              SUM(q_timeliness) +
+              SUM(q_completens) 
+             ) / (  6 )
+            ) / COUNT(*)
           ) AS csat,
           COUNT(*) AS number
         FROM
-            survey
+          survey
         WHERE 1
-            AND survey._del!='Y'
-            AND qp_ts >= ?
-            AND qp_ts < ?
+          AND survey._del!='Y'
+          AND qp_ts >= ?
+          AND qp_ts < ?
         GROUP BY id) e
-    GROUP BY e.owner";
+    GROUP BY e.owner, e.week_ending
+    ORDER BY e.week_ending desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute( $report_start, $report_stop ) or die $sth->errstr;
+
     my %csat_avg_metric;
-    foreach my $quarter ( keys %{$quarters} ) {
+    while( my $rh = $sth->fetchrow_hashref ) {
+        my $owner       = $rh->{'owner'};
+        my $week_ending = substr($rh->{'week_ending'}, 0, 10);
+        my $csat        = $rh->{'csat'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute( $quarter_start, $quarter_end ) or die $sth->errstr;
-
-        while( my $rh = $sth->fetchrow_hashref ) {
-            my $owner = $rh->{'owner'};
-            my $csat  = $rh->{'csat'};
-
-            $csat_avg_metric{$owner}{'CSAT Avg'}{$quarter} = $csat;
-        }
-
+        $report_stop = substr($report_stop, 0, 10);
+        $csat_avg_metric{$owner}{'CSAT Avg'}{$week_ending} = $csat;
     }
 
     return \%csat_avg_metric;
 }
 
 #----------------------------------------------------------------------
-# Global CSAT Avg- divide the sum of all surveys' CSAT results by
-# the total number of surveys in one quarter
+# Global CSE CSAT Avg - divide the sum of all surveys' CSAT results by
+# the total number of surveys in one week
 #----------------------------------------------------------------------
 sub csat_avg_Global {
 
-    my $quarters = shift;
-    my $dbh      = shift;
+    my ($report_stop, $dbh) = @_;
 
     my $sql
-    ="
+    = "
     SELECT
-      ROUND((SUM(e.csat) / SUM(e.number)), 2) AS csat
+      e.week_ending,
+      ROUND(
+      (SUM(e.csat) / SUM(e.number)), 2) AS csat
     FROM
-      (
-      SELECT
         (
-          ((
-            SUM(q_experience) +
-            SUM(q_courteousn) +
-            SUM(q_expertise)  +
-            SUM(q_responsive) +
-            SUM(q_timeliness) +
-            SUM(q_completens) 
-           ) / (  6 )
-          ) / COUNT(*)
-        ) AS csat,
-        COUNT(*) AS number
-      FROM
-        survey
-      WHERE 1
-        AND survey._del!='Y'
-        AND qp_ts >= ?
-        AND qp_ts < ?
-      GROUP BY id) e";
+        SELECT
+          owner,
+          CONCAT(
+            LEFT(DATE_ADD(qp_ts, INTERVAL (8 - DAYOFWEEK(qp_ts)) DAY
+                ), 10
+            ), ' 00:00:00'
+          ) AS week_ending,
+          (
+            ((
+              SUM(q_experience) +
+              SUM(q_courteousn) +
+              SUM(q_expertise)  +
+              SUM(q_responsive) +
+              SUM(q_timeliness) +
+              SUM(q_completens) 
+             ) / (  6 )
+            ) / COUNT(*)
+          ) AS csat,
+          COUNT(*) AS number
+        FROM
+          survey
+        WHERE 1
+          AND survey._del!='Y'
+          AND qp_ts >= ?
+          AND qp_ts < ?
+        GROUP BY id) e
+    GROUP BY e.week_ending
+    ORDER BY e.week_ending desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute( $report_start, $report_stop ) or die $sth->errstr;
+
     my %csat_avg_Global = ();
-    foreach my $quarter ( keys %{$quarters} ) {
+    while( my $rh = $sth->fetchrow_hashref ) {
+        my $week_ending = substr($rh->{'week_ending'}, 0, 10);
+        my $csat        = $rh->{'csat'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute( $quarter_start, $quarter_end ) or die $sth->errstr;
-
-        while( my $rh = $sth->fetchrow_hashref ) {
-
-            my $csat;
-            if ( defined $rh->{'csat'} ) {
-                $csat = $rh->{'csat'};
-            }
-            else {
-                $csat = 0;
-            }
-            $csat_avg_Global{$quarter} = $csat;
-        }
+        $csat_avg_Global{$week_ending} = $csat;
     }
 
     return \%csat_avg_Global;
 }
 
 #----------------------------------------------------------------------
-# Team CSAT Avg
+# Team CSE CSAT Avg
 #----------------------------------------------------------------------
 sub csat_avg_Team {
 
-    my ($quarters, $cses, $report_dbh, $csat_dbh) = @_;
+    my ($report_stop, $week_ends_order, $cses, $report_dbh, $csat_dbh) = @_;
 
     # figure out how many teams, and make relationships between
     # CSEs and their teams with the use of 'report.employees' table.
@@ -1055,6 +958,8 @@ sub csat_avg_Team {
     = "
     SELECT
       owner,
+      LEFT(DATE_ADD(qp_ts, INTERVAL (8 - DAYOFWEEK(qp_ts)) DAY
+        ), 10) AS week_ending,
       ROUND(
       (
         ((
@@ -1076,44 +981,36 @@ sub csat_avg_Team {
     GROUP BY id";
     my $survey_sth = $csat_dbh->prepare($survey_sql) or die $csat_dbh->errstr;
 
-    foreach my $quarter ( keys %{$quarters} ) {
+    my $report_start = previous_sunday_datetime(time, 4);
+    $survey_sth->execute( $report_start, $report_stop )
+    or die $survey_sth->errstr;
 
-        next if ( $quarter eq 'quarters_order' );
+    while( my $rh = $survey_sth->fetchrow_hashref ) {
+        my $owner       = $rh->{'owner'};
+        my $week_ending = $rh->{'week_ending'};
+        my $csat        = $rh->{'csat'};
 
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $survey_sth->execute( $quarter_start, $quarter_end )
-        or die $survey_sth->errstr;
-
-        while( my $rh = $survey_sth->fetchrow_hashref ) {
-            my $owner = $rh->{'owner'};
-            my $csat  = $rh->{'csat'};
-
-            $cses_info{$owner}{$quarter}{'value'} += $csat;
-            $cses_info{$owner}{$quarter}{'count'} += 1;
-        }
+        $cses_info{$owner}{$week_ending}{'value'} += $csat;
+        $cses_info{$owner}{$week_ending}{'count'} += 1;
     }
 
     my %csat_avg_Team = ();
     foreach my $manager ( @managers ) {
 
-        foreach my $quarter ( keys %{$quarters} ) {
-
-            next if ( $quarter eq 'quarters_order' );
+        foreach my $week_end ( @{$week_ends_order} ) {
 
             my $csat_value = 0;
             my $csat_count = 0;
             foreach my $cse ( keys %cses_info ) {
 
                 next if ( !exists $cses_info{$cse}{'manager'} );
-                next if ( !exists $cses_info{$cse}{$quarter}{'value'} );
-                next if ( !exists $cses_info{$cse}{$quarter}{'count'} );
+                next if ( !exists $cses_info{$cse}{$week_end}{'value'} );
+                next if ( !exists $cses_info{$cse}{$week_end}{'count'} );
 
                 next if ( $cses_info{$cse}{'manager'} ne $manager );
 
-                $csat_value += $cses_info{$cse}{$quarter}{'value'};
-                $csat_count += $cses_info{$cse}{$quarter}{'count'};
+                $csat_value += $cses_info{$cse}{$week_end}{'value'};
+                $csat_count += $cses_info{$cse}{$week_end}{'count'};
             }
 
             my $avg_value = 0;
@@ -1121,7 +1018,7 @@ sub csat_avg_Team {
                 $avg_value = sprintf("%.2f", ($csat_value / $csat_count));
             }
 
-            $csat_avg_Team{$manager}{$quarter} = $avg_value;
+            $csat_avg_Team{$manager}{$week_end} = $avg_value;
         }
     }
 
@@ -1133,16 +1030,23 @@ sub csat_avg_Team {
 #----------------------------------------------------------------------
 sub new_kb_articles_KPI {
 
-    my $quarters = shift;
-    my $dbh      = shift;
+    my ($report_stop, $dbh) = @_;
 
     my $sql = "SELECT
                  u.name AS owner,
+                 e.week_ending AS week_ending,
                  COUNT(*) AS total
                FROM
                  (  (
                     SELECT
-                      articles.id AS article_id, 
+                      articles.id AS article_id,
+                      CONCAT(
+                        LEFT(
+                          DATE_ADD(history.rowmtime,
+                            INTERVAL (8 - DAYOFWEEK(history.rowmtime)) DAY
+                          ), 10
+                        ), ' 00:00:00'
+                      ) AS week_ending, 
 
                       CASE WHEN realowner_article.user_id IS NOT NULL
                         THEN realowner_article.user_id
@@ -1167,26 +1071,20 @@ sub new_kb_articles_KPI {
                     JOIN users u ON e.owner = u.id
                  )
                  JOIN articles a ON e.article_id = a.id
-               GROUP BY u.name";
+               GROUP BY u.name, e.week_ending";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4); 
+    $sth->execute($report_start, $report_stop) or die $sth->errstr;
+
     my %new_kb_articles_metric;
-    foreach my $quarter ( keys %{$quarters} ) {
+    while( my $rh = $sth->fetchrow_hashref ) {
+        my $owner          = $rh->{'owner'};
+        my $week_ending    = substr($rh->{'week_ending'}, 0, 10);
+        my $articles_total = $rh->{'total'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute($quarter_start, $quarter_end) or die $sth->errstr;
-
-        while( my $rh = $sth->fetchrow_hashref ) {
-            my $owner          = $rh->{'owner'};
-            my $articles_total = $rh->{'total'};
-
-            $new_kb_articles_metric{$owner}{'New KB articles'}{$quarter}
-              = $articles_total;
-        }
+        $new_kb_articles_metric{$owner}{'New KB articles'}{$week_ending}
+          = $articles_total;
     }
 
     return \%new_kb_articles_metric;
@@ -1197,7 +1095,9 @@ sub new_kb_articles_KPI {
 #----------------------------------------------------------------------
 sub kb_linking_KPI {
 
-    my ($quarters, $rt_dbh, $report_dbh) = @_;
+    my ($report_stop, $report_dbh, $rt_dbh) = @_;
+
+    my $report_start = previous_sunday_datetime(time, 4);
 
     # pull out the tickets that have the custome field - 'iKbase_ID' from RT
     my $kb_linked_sql = "
@@ -1219,12 +1119,23 @@ sub kb_linking_KPI {
     my $kb_linked_sth = $rt_dbh->prepare($kb_linked_sql)
       or die $rt_dbh->errstr;
 
+    $kb_linked_sth->execute($report_start, $report_stop)
+      or die $kb_linked_sth->errstr;
+
+    my @kb_tickets = qw//;
+    while ( my $kb_linked_rh = $kb_linked_sth->fetchrow_hashref ) {
+
+        my $ticket_number = $kb_linked_rh->{'Id'};
+        push @kb_tickets, $ticket_number;
+    }
+
     # pull out the tickets which their status is 'Resolved' from report database
     my $resolved_sql = "
         SELECT
           IF(LOCATE('\@', owner) = 0,
             owner, LEFT(owner, LOCATE('\@', owner) - 1)
           ) AS owner,
+          week_ending,
           case_number
         FROM
           case_details
@@ -1235,38 +1146,21 @@ sub kb_linking_KPI {
     my $resolved_sth = $report_dbh->prepare($resolved_sql)
       or die $report_dbh->errstr;
 
+    $resolved_sth->execute($report_start, $report_stop)
+      or die $resolved_sth->errstr;
+
     my %kb_linking_metric;
-    foreach my $quarter ( keys %{$quarters} ) {
+    while ( my $resolved_rh = $resolved_sth->fetchrow_hashref ) {
 
-        next if ( $quarter eq 'quarters_order' );
+        my $owner         = $resolved_rh->{'owner'};
+        my $week_ending   = substr($resolved_rh->{'week_ending'}, 0, 10);
+        my $ticket_number = $resolved_rh->{'case_number'};
 
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $kb_linked_sth->execute($quarter_start, $quarter_end)
-          or die $kb_linked_sth->errstr;
-
-        my @kb_tickets = qw//;
-        while ( my $kb_linked_rh = $kb_linked_sth->fetchrow_hashref ) {
-
-            my $ticket_number = $kb_linked_rh->{'Id'};
-            push @kb_tickets, $ticket_number;
+        if ( grep {$ticket_number eq $_} @kb_tickets ) {
+            $kb_linking_metric{$owner}{'KB linking %'}{$week_ending} += 1;
         }
-
-        $resolved_sth->execute($quarter_start, $quarter_end)
-          or die $resolved_sth->errstr;
-
-        while ( my $resolved_rh = $resolved_sth->fetchrow_hashref ) {
-
-            my $owner         = $resolved_rh->{'owner'};
-            my $ticket_number = $resolved_rh->{'case_number'};
-
-            if ( grep {$ticket_number eq $_} @kb_tickets ) {
-                $kb_linking_metric{$owner}{'KB linking %'}{$quarter} += 1;
-            }
-            else {
-                $kb_linking_metric{$owner}{'KB linking %'}{$quarter} += 0;
-            }
+        else {
+            $kb_linking_metric{$owner}{'KB linking %'}{$week_ending} += 0;
         }
 
     }
@@ -1279,13 +1173,13 @@ sub kb_linking_KPI {
 #----------------------------------------------------------------------
 sub avg_resolution_SPI {
 
-    my $quarters = shift;
-    my $dbh      = shift;
+    my ($report_stop, $dbh) = @_;
 
     my $sql = "SELECT
                  IF(LOCATE('\@', owner) = 0,
                    owner, LEFT(owner, LOCATE('\@', owner) - 1)
                  ) AS owner,
+                 week_ending,
                  ROUND(
                    (SUM(resolution_time) / COUNT(case_number)) / (60*60*24)
                  , 2) AS avg_ticket_resolution_time
@@ -1295,28 +1189,21 @@ sub avg_resolution_SPI {
                  AND created >= ?
                  AND created < ?
                  AND status = 'resolved'
-               GROUP BY owner";
+               GROUP BY owner, week_ending
+               ORDER BY week_ending desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute($report_start, $report_stop) or die $sth->errstr;
+
     my %avg_resolution_metric;
-    foreach my $quarter ( keys %{$quarters} ) {
+    while( my $rh = $sth->fetchrow_hashref ) {
+        my $owner       = $rh->{'owner'};
+        my $week_ending = substr($rh->{'week_ending'}, 0, 10);
+        my $avg_time    = $rh->{'avg_ticket_resolution_time'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute($quarter_start, $quarter_end) or die $sth->errstr;
-
-        while( my $rh = $sth->fetchrow_hashref ) {
-            my $owner    = $rh->{'owner'};
-            my $avg_time = $rh->{'avg_ticket_resolution_time'};
-
-            $avg_resolution_metric{$owner}{'Avg Ticket Resolution Time'}
-{$quarter}
-              = $avg_time;
-        }
-
+        $avg_resolution_metric{$owner}{'Avg Ticket Resolution Time'}
+{$week_ending} = $avg_time;
     }
 
     return \%avg_resolution_metric;
@@ -1327,43 +1214,37 @@ sub avg_resolution_SPI {
 #----------------------------------------------------------------------
 sub avg_interactions_per_ticket_SPI {
 
-    my $quarters = shift;
-    my $dbh      = shift;
+    my ($report_stop, $dbh) = @_;
 
     my $sql = "SELECT
                  IF(LOCATE('\@', cse) = 0,
                    cse, LEFT(cse, LOCATE('\@', cse) - 1)
                  ) AS owner,
+                 week_ending,
                  ROUND(
-                   SUM(interactions) / SUM(cases_touched)
+                   (interactions / cases_touched)
                  , 2) AS avg_interactions
                FROM
                  interactions
                WHERE 1
                  AND week_ending > ?
                  AND week_ending <= ?
-               GROUP BY cse";
+               GROUP BY cse, week_ending
+               ORDER BY week_ending desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute($report_start, $report_stop) or die $sth->errstr;
+
     my %avg_interactions_metric;
-    foreach my $quarter ( keys %{$quarters} ) {
+    while( my $rh = $sth->fetchrow_hashref ) {
+        my $owner            = $rh->{'owner'};
+        my $week_ending      = substr($rh->{'week_ending'}, 0, 10);
+        my $avg_interactions = $rh->{'avg_interactions'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute($quarter_start, $quarter_end) or die $sth->errstr;
-
-        while( my $rh = $sth->fetchrow_hashref ) {
-            my $owner            = $rh->{'owner'};
-            my $avg_interactions = $rh->{'avg_interactions'};
-
-            $avg_interactions_metric{$owner}{'Avg Interactions Per Ticket'}
-{$quarter}
-              = $avg_interactions;
-        }
-
+        $avg_interactions_metric{$owner}{'Avg Interactions Per Ticket'}
+{$week_ending}
+          = $avg_interactions;
     }
 
     return \%avg_interactions_metric;
@@ -1375,13 +1256,13 @@ sub avg_interactions_per_ticket_SPI {
 #----------------------------------------------------------------------
 sub p1_p2_tickets_SPI {
 
-    my $quarters = shift;
-    my $dbh      = shift;
+    my ($report_stop, $dbh) = @_;
 
     my $sql = "SELECT
                  IF(LOCATE('\@', owner) = 0,
                    owner, LEFT(owner, LOCATE('\@', owner) - 1)
                  ) AS owner,
+                 week_ending,
                  COUNT(*) AS p1_p2
                FROM
                  case_details
@@ -1390,26 +1271,21 @@ sub p1_p2_tickets_SPI {
                  AND created < ?
                  AND (case_details.priority LIKE 'P1%'
                       OR case_details.priority LIKE 'P2%')
-               GROUP BY owner";
+               GROUP BY owner, week_ending
+               ORDER BY week_ending desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute($report_start, $report_stop) or die $sth->errstr;
+
     my %p1_p2_tickets_metric;
-    foreach my $quarter ( keys %{$quarters} ) {
+    while(my $rh = $sth -> fetchrow_hashref) {
+        my $owner       = $rh->{'owner'};
+        my $week_ending = substr($rh->{'week_ending'}, 0, 10);
+        my $p1_p2       = $rh->{'p1_p2'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute($quarter_start, $quarter_end) or die $sth->errstr;
-
-        while(my $rh = $sth -> fetchrow_hashref) {
-            my $owner = $rh->{'owner'};
-            my $p1_p2 = $rh->{'p1_p2'};
-
-            $p1_p2_tickets_metric{$owner}{'P1/P2 Tickets'}{$quarter} = $p1_p2;
-        }
-
+        $p1_p2_tickets_metric{$owner}{'P1/P2 Tickets'}{$week_ending}
+          = $p1_p2;
     }
 
     return \%p1_p2_tickets_metric
@@ -1420,52 +1296,51 @@ sub p1_p2_tickets_SPI {
 #----------------------------------------------------------------------
 sub management_escalated_tickets_SPI {
 
-    my $quarters = shift;
-    my $dbh      = shift;
+    my ($report_stop, $dbh) = @_;
 
     my $sql = "SELECT
                  IF(LOCATE('\@', u.Name) = 0,
                     u.Name,
                     LEFT(u.Name, LOCATE('\@', u.Name)-1)
                  ) AS owner,
-                 COUNT(*) AS management_escalated_tickets
-               FROM
-                 Tickets t,
-                 TicketCustomFieldValues c,
-                 CustomFields cf,
-                 Users u
-               WHERE   1
-                 AND  t.Resolved >= ?
-                 AND  t.Resolved < ?
-                 AND  t.Id = t.EffectiveId
-                 AND  t.Owner = u.Id
-                 AND  t.Status = 'resolved'
-                 AND  u.Name <> 'Nobody'
-                 AND  t.Id = c.Ticket
-                 AND  c.CustomField = cf.Id
-                 AND  cf.Name = 'Escalate Ticket'
-               GROUP BY owner";
+                 CONCAT(
+                   LEFT(
+                     DATE_ADD(t.Resolved,
+                       INTERVAL (8 - DAYOFWEEK(t.Resolved)) DAY
+                     ), 10
+                   ), ' 00:00:00'
+                 ) AS week_ending,
+                 COUNT(t.id) AS management_escalated_tickets
+                 FROM
+                   Tickets t, TicketCustomFieldValues c, CustomFields cf,
+                   Users u
+                 WHERE   1
+                   AND  t.Resolved >= ?
+                   AND  t.Resolved < ?
+                   AND  t.Id = t.EffectiveId
+                   AND  t.Owner = u.Id
+                   AND  t.Status = 'resolved'
+                   AND  u.Name <> 'Nobody'
+                   AND  t.Id = c.Ticket
+                   AND  c.CustomField = cf.Id
+                   AND  cf.Name = 'Escalate Ticket'
+                 GROUP BY owner, week_ending
+                 ORDER BY week_ending desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute($report_start, $report_stop) or die $sth->errstr;
+
     my %management_escalated_tickets_metric;
-    foreach my $quarter ( keys %{$quarters} ) {
+    while(my $rh = $sth -> fetchrow_hashref) {
+        my $owner       = $rh->{'owner'};
+        my $week_ending = substr($rh->{'week_ending'}, 0, 10);
+        my $management_escalated_tickets
+          = $rh->{'management_escalated_tickets'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute($quarter_start, $quarter_end) or die $sth->errstr;
-
-        while(my $rh = $sth -> fetchrow_hashref) {
-            my $owner = $rh->{'owner'};
-            my $management_escalated_tickets
-              = $rh->{'management_escalated_tickets'};
-
-            $management_escalated_tickets_metric{$owner}
-{'Management Escalated Tickets'}{$quarter}
-              = $management_escalated_tickets;
-        }
+        $management_escalated_tickets_metric{$owner}
+{'Management Escalated Tickets'}{$week_ending}
+          = $management_escalated_tickets;
     }
 
     return \%management_escalated_tickets_metric
@@ -1476,11 +1351,16 @@ sub management_escalated_tickets_SPI {
 #----------------------------------------------------------------------
 sub low_cast_questions_SPI {
 
-    my $quarters = shift;
-    my $dbh      = shift;
+    my ($report_stop, $dbh) = @_;
 
-   my $sql = "SELECT
+    my $sql = "SELECT
                  owner,
+                 CONCAT(
+                  LEFT(
+                   DATE_ADD(qp_ts, INTERVAL (8 - DAYOFWEEK(qp_ts)) DAY
+                   ), 10
+                  ), ' 00:00:00'
+                 ) AS week_ending,
                  COUNT(*) AS total_low_csat
                 FROM
                 (
@@ -1546,26 +1426,21 @@ sub low_cast_questions_SPI {
                   AND qp_ts >= ?
                   AND qp_ts < ?
                   AND owner <> ''
-                GROUP BY owner";
+                GROUP BY owner, week_ending
+                ORDER BY week_ending desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute($report_start, $report_stop) or die $sth->errstr;
+
     my %low_cast_questions_metric;
-    foreach my $quarter ( keys %{$quarters} ) {
+    while(my $rh = $sth -> fetchrow_hashref) {
+        my $owner          = $rh->{'owner'};
+        my $week_ending    = substr($rh->{'week_ending'}, 0, 10);
+        my $total_low_csat = $rh->{'total_low_csat'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute($quarter_start, $quarter_end) or die $sth->errstr;
-
-        while(my $rh = $sth -> fetchrow_hashref) {
-            my $owner          = $rh->{'owner'};
-            my $total_low_csat = $rh->{'total_low_csat'};
-
-            $low_cast_questions_metric{$owner}{'Low CSATs'}{$quarter}
-              = $total_low_csat;
-        }
+        $low_cast_questions_metric{$owner}{'Low CSATs'}{$week_ending}
+          = $total_low_csat;
     }
 
     return \%low_cast_questions_metric
@@ -1576,11 +1451,16 @@ sub low_cast_questions_SPI {
 #----------------------------------------------------------------------
 sub high_csat_questions_SPI {
 
-    my $quarters = shift;
-    my $dbh      = shift;
+    my ($report_stop, $dbh) = @_;
 
     my $sql = "SELECT
                  owner,
+                 CONCAT(
+                  LEFT(
+                   DATE_ADD(qp_ts, INTERVAL (8 - DAYOFWEEK(qp_ts)) DAY
+                   ), 10
+                  ), ' 00:00:00'
+                 ) AS week_ending,
                  COUNT(*) AS total_high_csat
                 FROM
                 (
@@ -1646,43 +1526,41 @@ sub high_csat_questions_SPI {
                   AND qp_ts >= ?
                   AND qp_ts < ?
                   AND owner <> ''
-                GROUP BY owner";
+                GROUP BY owner, week_ending
+                ORDER BY week_ending desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute($report_start, $report_stop) or die $sth->errstr;
+
     my %high_csat_questions_metric;
-    foreach my $quarter ( keys %{$quarters} ) {
+    while(my $rh = $sth -> fetchrow_hashref) {
+        my $owner           = $rh->{'owner'};
+        my $week_ending     = substr($rh->{'week_ending'}, 0, 10);
+        my $total_high_csat = $rh->{'total_high_csat'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute($quarter_start, $quarter_end) or die $sth->errstr;
-
-        while(my $rh = $sth -> fetchrow_hashref) {
-            my $owner           = $rh->{'owner'};
-            my $total_high_csat = $rh->{'total_high_csat'};
-
-            $high_csat_questions_metric{$owner}{'High CSATs'}{$quarter}
-              = $total_high_csat;
-        }
-
+        $high_csat_questions_metric{$owner}{'High CSATs'}{$week_ending}
+          = $total_high_csat;
     }
 
     return \%high_csat_questions_metric
 }
-
 
 #----------------------------------------------------------------------
 # All CSATs (1-5) on CSE questions
 #----------------------------------------------------------------------
 sub all_csat_questions_SPI {
 
-    my $quarters = shift;
-    my $dbh      = shift;
+    my ($report_stop, $dbh) = @_;
 
     my $sql = "SELECT
                  owner,
+                 CONCAT(
+                  LEFT(
+                   DATE_ADD(qp_ts, INTERVAL (8 - DAYOFWEEK(qp_ts)) DAY
+                   ), 10
+                  ), ' 00:00:00'
+                 ) AS week_ending,
                  COUNT(*) AS total_csat
                 FROM
                 (
@@ -1748,120 +1626,125 @@ sub all_csat_questions_SPI {
                   AND qp_ts >= ?
                   AND qp_ts < ?
                   AND owner <> ''
-                GROUP BY owner";
+                GROUP BY owner, week_ending
+                ORDER BY week_ending desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute($report_start, $report_stop) or die $sth->errstr;
+
     my %all_csat_questions_metric;
-    foreach my $quarter ( keys %{$quarters} ) {
+    while(my $rh = $sth -> fetchrow_hashref) {
+        my $owner       = $rh->{'owner'};
+        my $week_ending = substr($rh->{'week_ending'}, 0, 10);
+        my $total_csat  = $rh->{'total_csat'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute($quarter_start, $quarter_end) or die $sth->errstr;
-
-        while(my $rh = $sth -> fetchrow_hashref) {
-            my $owner      = $rh->{'owner'};
-            my $total_csat = $rh->{'total_csat'};
-
-            $all_csat_questions_metric{$owner}{'All CSATs'}{$quarter}
-              = $total_csat;
-        }
-
+        $all_csat_questions_metric{$owner}{'All CSATs'}{$week_ending}
+          = $total_csat;
     }
 
     return \%all_csat_questions_metric
 }
-
 
 #----------------------------------------------------------------------
 # Total CSAT Surveys
 #----------------------------------------------------------------------
 sub total_cast_surveys_SPI {
 
-    my $quarters = shift;
-    my $dbh      = shift;
+    my ($report_stop, $dbh) = @_;
 
     my $sql = "SELECT
                 owner,
+                week_ending,
                 COUNT(*) AS total_csat_surveys
                FROM
-                 survey
+                 (
+                 SELECT
+                   id,owner,qp_ts,
+                   CONCAT(
+                     LEFT(
+                       DATE_ADD(qp_ts, INTERVAL (8 - DAYOFWEEK(qp_ts)) DAY
+                       ), 10
+                     ), ' 00:00:00'
+                   ) AS week_ending
+                 FROM
+                   survey
+                 WHERE
+                   _del != 'Y'
+                 ) e
                WHERE
                  qp_ts >= ?
                  AND qp_ts < ?
                  AND owner<>''
-                 AND _del != 'Y'
-               GROUP BY owner";
+               GROUP BY owner, week_ending
+               ORDER BY week_ending desc";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute($report_start, $report_stop) or die $sth->errstr;
 
     my %total_cast_surveys_metric;
-    foreach my $quarter ( keys %{$quarters} ) {
+    while(my $rh = $sth -> fetchrow_hashref) {
+        my $owner              = $rh->{'owner'};
+        my $week_ending        = substr($rh->{'week_ending'}, 0, 10);
+        my $total_csat_surveys = $rh->{'total_csat_surveys'};
 
-        next if ( $quarter eq 'quarters_order' );
-
-        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
-
-        $sth->execute($quarter_start, $quarter_end) or die $sth->errstr;
-
-        while(my $rh = $sth -> fetchrow_hashref) {
-            my $owner              = $rh->{'owner'};
-            my $total_csat_surveys = $rh->{'total_csat_surveys'};
-
-            $total_cast_surveys_metric{$owner}{'Total CSAT Surveys'}{$quarter}
-              = $total_csat_surveys;
-        }
+        $total_cast_surveys_metric{$owner}{'Total CSAT Surveys'}{$week_ending}
+          = $total_csat_surveys;
     }
 
     return \%total_cast_surveys_metric
 }
 
 #----------------------------------------------------------------------
-# Current Ticket Backlog
+# Average Ticket Backlog
 #----------------------------------------------------------------------
-#sub current_ticket_backlog_SPI {
+sub average_ticket_backlog_SPI {
 
-#    my $quarters = shift;
-#    my $dbh      = shift;
+    my ($report_stop, $dbh) = @_;
 
-#    my $sql = "SELECT
-#                 SUBSTR(owner, 1, LOCATE('\@', owner) - 1) AS owner,
-#                 COUNT(case_number) AS current_backlog,
-#               FROM
-#                 case_details
-#               WHERE
-#                 (status = 'open' OR status = 'stalled' OR status = 'new')
-#                 AND created >= ?
-#                 AND created < ?
-#               GROUP BY owner";
-#    my $sth = $dbh->prepare($sql) or die $dbh->errstr;
+    my $sql = "SELECT
+                 IF(LOCATE('\@', u.Name) = 0,
+                    u.Name,
+                    LEFT(u.Name, LOCATE('\@', u.Name)-1)
+                 ) AS owner,
+                 CONCAT(
+                   LEFT(
+                     DATE_ADD(t.Created, INTERVAL (8 - DAYOFWEEK(t.Created)) DAY
+                     ), 10
+                   ), ' 00:00:00'
+                 ) AS week_ending,
+                 COUNT(t.id) AS average_backlog_per_week,
+               FROM
+                 Tickets t, Users u
+               WHERE 1
+                 AND (t.Status   = 'open'
+                     OR t.Status = 'stalled'
+                     OR t.Status = 'new')
+                 AND t.Owner = u.id
+                 AND u.Name <> 'Nobody'
+                 AND t.Created >= ?
+                 AND t.Created < ?
+               GROUP BY owner, week_ending
+               ORDER BY week_ending desc";
+    my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
-#    my %current_ticket_backlog_metric;
-#    foreach my $quarter ( keys %{$quarters} ) {
+    my $report_start = previous_sunday_datetime(time, 4);
+    $sth->execute($report_start, $report_stop) or die $sth->errstr;
 
-#        next if ( $quarter eq 'quarters_order' );
+    my %average_ticket_backlog_metric;
+    while(my $rh = $sth -> fetchrow_hashref) {
+        my $owner                    = $rh->{'owner'};
+        my $week_ending              = substr($rh->{'week_ending'}, 0, 10);
+        my $average_backlog_per_week = $rh->{'average_backlog_per_week'};
 
-#        my $quarter_start = $quarters->{$quarter}[0] . " 00:00:00";
-#        my $quarter_end   = $quarters->{$quarter}[1] . " 00:00:00";
+        $average_ticket_backlog_metric{$owner}{'Average Ticket Backlog'}
+{$week_ending}
+          = $average_backlog_per_week;
+    }
 
-#        $sth->execute($quarter_start, $quarter_end) or die $sth->errstr;
-
-#        while(my $rh = $sth -> fetchrow_hashref) {
-#            my $owner           = $rh->{'owner'};
-#            my $current_backlog = $rh->{'current_backlog'};
-
-#            $current_ticket_backlog_metric{$owner}{'Current Ticket Backlog'}
-#{$quarter}
-#              = $current_backlog;
-#        }
-#    }
-
-#    return \%current_ticket_backlog_metric
-#}
-
+    return \%average_ticket_backlog_metric
+}
 
 #----------------------------------------------------------------------
 # figure out the email list that the metrics report should be CC'd to
@@ -2042,112 +1925,6 @@ sub get_email {
     my $digest = $header . $content . $footer;
 
     return $digest;
-
-}
-
-#----------------------------------------------------------------------
-# get header of excel
-#----------------------------------------------------------------------
-
-sub get_options_per_cse{
-
-    my $cse_quarter = shift;
-
-    my @cse_extend = @{$cse_quarter->{'Extend'}->{'metrics_order'}};
-    my @cse_kpi    = @{$cse_quarter->{'KPI'}->{'metrics_order'}};
-    my @cse_spi    = @{$cse_quarter->{'SPI'}->{'metrics_order'}};
-
-    my @first_row;
-    @first_row = ("CSE alias", @cse_extend, @cse_kpi, @cse_spi);
-
-    return @first_row;
-
-}
-
-#----------------------------------------------------------------------
-# get one row of excel
-#----------------------------------------------------------------------
-sub get_row_per_cse{
-
-    my $cse_quarter = shift;
-
-    my @first_row = get_options_per_cse($cse_quarter);
-
-    my %kpi_spi_value = (
-                         %{$cse_quarter->{"Extend"}},
-                         %{$cse_quarter->{"KPI"}},
-                         %{$cse_quarter->{"SPI"}}
-                         );
-
-    delete $kpi_spi_value{"metrics_order"};
-
-    my %return_hash = ('name' => $cse_quarter->{"name"});
-
-    # making an order to the values for cse extend, kpi and spi
-    foreach my $quarter ( @{$cse_quarter->{'quarters_order'}} ) {
-
-        my @return_array = ();
-        for my $i(1..$#first_row) {
-
-            if (!exists $kpi_spi_value{$first_row[$i]}{$quarter}) {
-                $kpi_spi_value{$first_row[$i]}{$quarter} = 0;
-            }
-
-            foreach my $status(keys %kpi_spi_value){
-
-                if ($first_row[$i] eq $status) {
-                    if ($kpi_spi_value{$status}{$quarter} eq "") {
-                        $kpi_spi_value{$status}{$quarter} = 0;
-                    }
-
-                    push @return_array, $kpi_spi_value{$status}{$quarter};
-                }
-            }
-        }
-
-        @{$return_hash{$quarter}} = @return_array;
-    }
-
-return \%return_hash;
-
-}
-
-#----------------------------------------------------------------------
-# make excel attachment for per cse quarterly report
-#----------------------------------------------------------------------
-#TODO:To make it for recordset
-sub make_excel_for_each_cse{
-
-    my $first_row   = shift;
-    my $per_cse_row = shift;
-    my $data_dir    = shift;
-
-    mkdir "$data_dir", 0777 unless -d "$data_dir";
-
-    my $file_path = $data_dir
-                    . $per_cse_row->{"name"}
-                    . '_quarterly_report.xls';
-
-    my $per_cse_quarterly_report
-        = Spreadsheet::WriteExcel->new($file_path);
-
-    my $format = $per_cse_quarterly_report->add_format();
-    $format->set_bold();
-
-    foreach my $quarter ( keys %{$per_cse_row} ) {
-
-        next if ($quarter eq "name");
-
-        my @second_row = ($per_cse_row->{"name"}, @{$per_cse_row->{$quarter}});
-
-        my $quarterly_report
-            = $per_cse_quarterly_report->add_worksheet($quarter);
-
-        $quarterly_report -> write_row(0, 0, $first_row, $format);
-        $quarterly_report -> write_row(1, 0, \@second_row);
-    }
-
-    return $file_path;
 }
 
 #----------------------------------------------------------------------
@@ -2155,21 +1932,20 @@ sub make_excel_for_each_cse{
 #----------------------------------------------------------------------
 sub email_results {
 
-    my ($from, $to, $cc, $bcc, $subject, $html, $attachment) = @_;
+    my ($from, $to, $cc, $bcc, $subject, $html) = @_;
 
     my %mail_config = (
-        'reply_to'   => $from,
-        'from'       => $from,
-        'to'         => $to, 
-        'cc'         => $cc,
-        'bcc'        => $bcc,
-        'subject'    => $subject, 
-        'text'       => '',
-        'html'       => $html,
-        'attachment' => $attachment,
+        'reply_to' => $from,
+        'from'     => $from,
+        'to'       => $to, 
+        'cc'       => $cc,
+        'bcc'      => $bcc,
+        'subject'  => $subject, 
+        'text'     => '',
+        'html'     => $html,
     );
 
-    my ( $stat, $err ) = SendMail::multi_mail_attachment( \%mail_config );
+    my ( $stat, $err ) = SendMail::multi_mail( \%mail_config );
     if ( !$stat ) {
         die "could not send out metrics report";
     }
@@ -2207,10 +1983,10 @@ sub usage {
     print << "EOP";
 
   USAGE:
-    $0 -r -e < environment >
+    $0 -r -e < environment > 
 
   DESCRIPTION:
-    this script is used to send metrics report for per CSE quarterly.
+    this script is used to send metrics report to per CSE weekly.
 
   OPTIONS:
     -r .. Run
@@ -2219,9 +1995,9 @@ sub usage {
     Each environment has its own databases and set of configuration parameters.
 
     Configuration files found here:
-      ../conf/quarterly_report_metrics_per_cse_development.conf
-      ../conf/quarterly_report_metrics_per_cse_test.conf
-      ../conf/quarterly_report_metrics_per_cse_production.conf
+      ../conf/weekly_report_metrics_per_cse_development.conf
+      ../conf/weekly_report_metrics_per_cse_test.conf
+      ../conf/weekly_report_metrics_per_cse_production.conf
 
   Examples:
   $0 -r -e development
