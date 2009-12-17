@@ -1,0 +1,83 @@
+<h1 style="margin-bottom: 0px;"> Monthly Performance Report - [% items.name %] </h1><br>
+
+[% FOREACH item IN items %]
+
+  [% IF item.key == 'Extend' %]
+  <table cellspacing="0" cellpadding="5px" border="1">
+    <tr>
+      <th class="center_col top_row"> Month </th>
+      [% FOREACH month IN items.months_order %]
+      <th class="center_col top_row"> [% month %] </th>
+      [% END %]
+    </tr>
+
+    [% FOREACH metric IN items.Extend.metrics_order %]
+      <tr>
+        <td class="center_col"> [% metric %] </td>
+        [% FOREACH month IN items.months_order %]
+        <td class="center_col"> [% item.value.$metric.$month %] </td>
+        [% END %]
+      </tr>
+    [% END %]
+  </table><br>
+  [% END %]
+
+  [% IF item.key == 'KPI' %]
+  <h1 style="margin-bottom: 0px;"> Key Performance Indicators (KPI's) </h1>
+
+  <table cellspacing="0" cellpadding="5px" border="1">
+    <tr>
+      <th class="center_col top_row"> KPI - Month </th>
+      [% FOREACH month IN items.months_order %]
+      <th class="center_col top_row"> [% month %] </th>
+      [% END %]
+    </tr>
+
+    [% FOREACH metric IN items.KPI.metrics_order %]
+      <tr>
+        <td class="center_col"> [% metric %] </td>
+        [% FOREACH month IN items.months_order %]
+        <td class="center_col"> [% item.value.$metric.$month %] </td>
+        [% END %]
+      </tr>
+    [% END %]
+  </table><br>
+  [% END %]
+
+  [% IF item.key == 'SPI' %]
+  <h1 style="margin-bottom: 0px;"> Supplemental Performance Indicators (SPI's) </h1>
+
+  <table cellspacing="0" cellpadding="5px" border="1">
+    <tr>
+      <th class="center_col top_row"> SPI - Month </th>
+      [% FOREACH month IN items.months_order %]
+      <th class="center_col top_row"> [% month %] </th>
+      [% END %]
+    </tr>
+
+    [% FOREACH metric IN items.SPI.metrics_order %]
+
+      [% NEXT IF metric == "All CSATs" %]
+      <tr>
+        [% IF metric == "Avg Ticket Resolution Time" %]
+        <th class="center_col"> [% metric %]&nbsp;(Days) </th>
+        [% ELSE %]
+        <th class="center_col"> [% metric %] </th>
+        [% END %]
+
+        [% IF metric == "Low CSATs" || metric == "High CSATs" %]
+          [% SET total_csat = "All CSATs" %]
+          [% FOREACH month IN items.months_order %]
+          <td class="center_col"> [% item.value.$metric.$month %] / [% item.value.$total_csat.$month %] </td>
+          [% END %]
+        [% ELSE %]
+          [% FOREACH month IN items.months_order %]
+          <td class="center_col"> [% item.value.$metric.$month %] </td>
+          [% END %]
+        [% END %]
+      </tr>
+    [% END %]
+  </table><br>
+  [% END %]
+
+[% END %]
