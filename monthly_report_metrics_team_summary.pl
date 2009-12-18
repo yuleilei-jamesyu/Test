@@ -241,67 +241,48 @@ my $new_kb_articles_KPI
 
 # KPI - KB linking %
 my $kb_linking_KPI
-  = kb_linking_KPI($report_weekend, $rt_dbh, $report_dbh);
+  = kb_linking_KPI($cisco_months, $rt_dbh, $report_dbh);
 
 # SPI - Avg Ticket Resolution Time
 my $avg_resolution_SPI
-  = avg_resolution_SPI($report_weekend, $report_dbh);
+  = avg_resolution_SPI($cisco_months, $report_dbh);
 
 # SPI - Avg Interactions Per Ticket
 my $avg_interactions_per_ticket_SPI
-  = avg_interactions_per_ticket_SPI($report_weekend, $report_dbh);
+  = avg_interactions_per_ticket_SPI($cisco_months, $report_dbh);
 
 # SPI - P1/P2 Tickets
 my $p1_p2_tickets_SPI
-  = p1_p2_tickets_SPI($report_weekend, $report_dbh);
+  = p1_p2_tickets_SPI($cisco_months, $report_dbh);
 
 # SPI - Management Escalated Tickets
 my $management_escalated_tickets_SPI
-  = management_escalated_tickets_SPI($report_weekend, $rt_dbh);
+  = management_escalated_tickets_SPI($cisco_months, $rt_dbh);
 
 # SPI - Low CSATs (1-2) on CSE questions
 my $low_cast_questions_SPI
-  = low_cast_questions_SPI($report_weekend, $csat_dbh);
+  = low_cast_questions_SPI($cisco_months, $csat_dbh);
 
 # SPI - High CSATs (4-5) on CSE questions
 my $high_csat_questions_SPI
-  = high_csat_questions_SPI($report_weekend, $csat_dbh);
+  = high_csat_questions_SPI($cisco_months, $csat_dbh);
 
 # SPI - All CSATs (1-5) on CSE questions
 my $all_csat_questions_SPI
-  = all_csat_questions_SPI($report_weekend, $csat_dbh);
+  = all_csat_questions_SPI($cisco_months, $csat_dbh);
 
 # SPI - Total CSAT Surveys
 my $total_cast_surveys_SPI
-  = total_cast_surveys_SPI($report_weekend, $csat_dbh);
+  = total_cast_surveys_SPI($cisco_months, $csat_dbh);
 
 # SPI - Current Ticket Backlog
 #my $current_ticket_backlog_SPI
-#  = current_ticket_backlog_SPI($report_weekend, $report_dbh);
-
-# SPI - Average Ticket Backlog
-#my $average_ticket_backlog_SPI
-#  = average_ticket_backlog_SPI($report_weekend, $weeks, $rt_dbh);
+#  = current_ticket_backlog_SPI($cisco_months, $report_dbh);
 
 #----------------------------------------------------------------------
 # use employees table to filter metric hashes and combine them into a 
 # new hash with employees' ownername as the key 
 #----------------------------------------------------------------------
-
-# CSEs include this following roles: 'cse', 'e4e', 'sonata', 'lead'
-my ( $stat, $err ) = FileUtils::file2string(
-    {   file             => $cses_sql_file,
-        comment_flag     => 1,
-        blank_lines_flag => 1
-    }
-);
-if ( !$stat ) {
-    email_errors($err);
-    die $err;
-}
-
-my $employee_sql = $err;
-
 my $employee_sth = $report_dbh->prepare($employee_sql)
   or die $report_dbh->errstr;
 $employee_sth->execute() or die $employee_sth->errstr;
@@ -320,40 +301,51 @@ while( my $employee_rh = $employee_sth->fetchrow_hashref) {
 
     # cse's full name
     my $owner_full_name = $first_name . " " . $last_name;
-    $cse_metrics{$manager}{$owner_name}{'full_name'}    = $owner_full_name;
+    $cse_metrics{$manager}{$owner_name}{'full_name'}
+      = $owner_full_name;
 
     # cse's name
-    $cse_metrics{$manager}{$owner_name}{'name'}    = $owner_name;
+    $cse_metrics{$manager}{$owner_name}{'name'}
+      = $owner_name;
 
     # cse's region
-    $cse_metrics{$manager}{$owner_name}{'region'}    = $region;
+    $cse_metrics{$manager}{$owner_name}{'region'}
+      = $region;
 
     # cse's role
-    $cse_metrics{$manager}{$owner_name}{'role'}    = $role;
+    $cse_metrics{$manager}{$owner_name}{'role'}
+      = $role;
 
     # cse's manager
-    $cse_metrics{$manager}{$owner_name}{'manager'}    = $manager;
+    $cse_metrics{$manager}{$owner_name}{'manager'}
+      = $manager;
 
     # cse's email
-    $cse_metrics{$manager}{$owner_name}{'email'}   = $employee_email;
+    $cse_metrics{$manager}{$owner_name}{'email'}
+      = $employee_email;
 
     # manager's manager
-    $cse_metrics{$manager}{'manager'} = 'tdavis@ironport.com';
+    $cse_metrics{$manager}{'manager'}
+      = 'tdavis@ironport.com';
 
     # manager's name
-    $cse_metrics{$manager}{'name'} = $manager;
+    $cse_metrics{$manager}{'name'}
+      = $manager;
 
     # manager's email
-    $cse_metrics{$manager}{'email'} = $manager_email;
+    $cse_metrics{$manager}{'email'}
+      = $manager_email;
 
     # quarter's name
-    $cse_metrics{$manager}{'quarter'} = $quarter_name;
+    $cse_metrics{$manager}{'months_order'}
+      = @{$cisco_months->{'months_order'}};
 
     # KPI Metrics' order
     @{$cse_metrics{$manager}{'KPI_metrics_order'}} = (
         'New Tickets',
         'Tickets Touched',
         'Tickets Resolved',
+        'Tickets Reopened',
         'CSAT Avg',
         'New KB articles',
         'KB linking %',
@@ -375,45 +367,151 @@ while( my $employee_rh = $employee_sth->fetchrow_hashref) {
 #        'Average Ticket Backlog',
     );
 
-    if ( exists $new_tickets_KPI->{$owner_name} ) {
-        $cse_metrics{$manager}{$owner_name}{'KPI'}{'New Tickets'}
-          = $new_tickets_KPI->{$owner_name}->{'New Tickets'};
-    }
-    else {
-        $cse_metrics{$manager}{$owner_name}{'KPI'}{'New Tickets'} = 0;
+    # consolidate a hash that contains the cse's metrics data
+    foreach my $month ( @{$cisco_months->{'months_order'}} ) {
+
+        # New Tickets
+        if ( exists $new_tickets_KPI->{$owner_name}->{'New Tickets'}->{$month}
+) {
+            $cse_metrics{$manager}{$owner_name}{'KPI'}{'New Tickets'}{$month}
+              = $new_tickets_KPI->{$owner_name}->{'New Tickets'}->{$month};
+        }
+        else {
+            $cse_metrics{$manager}{$owner_name}{'KPI'}{'New Tickets'}{$month}
+              = 0;
+        }
+
+        # Tickets Touched
+        if ( exists $tickets_touched_KPI->{$owner_name}->{'Tickets Touched'}
+->{$month} ) {
+            $cse_metrics{$manager}{$owner_name}{'KPI'}{'Tickets Touched'}
+{$month}
+              = $tickets_touched_KPI->{$owner_name}->{'Tickets Touched'}
+->{$month};
+        }
+        else {
+            $cse_metrics{$manager}{$owner_name}{'KPI'}{'Tickets Touched'}
+{$month}
+              = 0;
+        }
+
+        # Tickets Resolved
+        if ( exists $tickets_resolved_KPI->{$owner_name}->{'Tickets Resolved'}
+->{$month} ) {
+            $cse_metrics{$manager}{$owner_name}{'KPI'}{'Tickets Resolved'}
+{$month}
+              = $tickets_resolved_KPI->{$owner_name}->{'Tickets Resolved'}
+->{$month};
+        }
+        else {
+            $cse_metrics{$manager}{$owner_name}{'KPI'}{'Tickets Resolved'}
+{$month}
+              = 0;
+        }
+
+        # Tickets Reopened
+        if ( exists $tickets_reopened_KPI->{$owner_name}->{'Tickets Reopened'}
+->{$month} ) {
+            $cse_metrics{$manager}{$owner_name}{'KPI'}{'Tickets Reopened'}
+{$month}
+              = $tickets_reopened_KPI->{$owner_name}->{'Tickets Reopened'}
+->{$month};
+        }
+        else {
+            $cse_metrics{$manager}{$owner_name}{'KPI'}{'Tickets Reopened'}
+{$month}
+              = 0;
+        }
+
+        # CSAT Average
+        if ( exists $csat_avg_KPI->{$owner_name}->{'CSAT Avg'}->{$month} ) {
+            $cse_metrics{$manager}{$owner_name}{'KPI'}{'CSAT Avg'}{$month}
+              = $csat_avg_KPI->{$owner_name}->{'CSAT Avg'}->{$month};
+        }
+        else {
+            $cse_metrics{$manager}{$owner_name}{'KPI'}{'CSAT Avg'}{$month}
+              = 0;
+        }
+
+        # New KB Articles
+        if ( exists $new_kb_articles_KPI->{$owner_name}->{'New KB articles'}
+->{$month} ) {
+            $cse_metrics{$manager}{$owner_name}{'KPI'}{'New KB articles'}
+{$month}
+              = $new_kb_articles_KPI->{$owner_name}->{'New KB articles'}
+->{$month};
+        }
+        else {
+            $cse_metrics{$manager}{$owner_name}{'KPI'}{'New KB articles'}
+{$month}
+              = 0;
+        }
+
+        # Avg Ticket Resolution Time
+        if ( exists $avg_resolution_SPI->{$owner_name}
+->{'Avg Ticket Resolution Time'}->{$month} ) {
+            $cse_metrics{$manager}{$owner_name}{'SPI'}
+{'Avg Ticket Resolution Time'}{$month}
+              = $avg_resolution_SPI->{$owner_name}
+->{'Avg Ticket Resolution Time'}->{$month};
+        }
+        else {
+            $cse_metrics{$manager}{$owner_name}{'SPI'}
+{'Avg Ticket Resolution Time'}{$month}
+              = 0;
+        }
+
+        #Avg Interactions Per Ticket
+        if ( exists $avg_interactions_per_ticket_SPI->{$owner_name}
+->{'Avg Interactions Per Ticket'}->{$month} ) {
+            $cse_metrics{$manager}{$owner_name}{'SPI'}
+{'Avg Interactions Per Ticket'}{$month}
+              = $avg_interactions_per_ticket_SPI->{$owner_name}
+->{'Avg Interactions Per Ticket'}->{$month};
+        }
+        else {
+            $cse_metrics{$manager}{$owner_name}{'SPI'}
+{'Avg Interactions Per Ticket'}{$month}
+              = 0;
+        }
+
+        # P1/P2 Tickets
+        if ( exists $p1_p2_tickets_SPI->{$owner_name}->{'P1/P2 Tickets'}
+->{$month} ) {
+            $cse_metrics{$manager}{$owner_name}{'SPI'}{'P1/P2 Tickets'}{$month}
+              = $p1_p2_tickets_SPI->{$owner_name}->{'P1/P2 Tickets'}->{$month};
+        }
+        else {
+            $cse_metrics{$manager}{$owner_name}{'SPI'}{'P1/P2 Tickets'}{$month}
+              = 0;
+        }
+
+        # Management Escalated Tickets
+        if ( exists $management_escalated_tickets_SPI->{$owner_name}
+->{'Management Escalated Tickets'}->{$month} ) {
+            $cse_metrics{$manager}{$owner_name}{'SPI'}
+{'Management Escalated Tickets'}{$month}
+              = $management_escalated_tickets_SPI->{$owner_name}
+->{'Management Escalated Tickets'}->{$month};
+        }
+        else {
+            $cse_metrics{$manager}{$owner_name}{'SPI'}
+{'Management Escalated Tickets'}{$month} = 0;
+        }
+
+        # Current Ticket Backlog
+#       if ( exists $current_ticket_backlog_SPI->{$owner_name} ) {
+#           $cse_metrics{$manager}{$owner_name}{'SPI'}{'Current Ticket Backlog'}
+#             = $current_ticket_backlog_SPI->{$owner_name}
+#{'Current Ticket Backlog'};
+#       }
+#       else {
+#           $cse_metrics{$manager}{$owner_name}{'SPI'}{'Current Ticket Backlog'}
+#              = 0;
+#       }
+
     }
 
-    if ( exists $tickets_touched_KPI->{$owner_name} ) {
-        $cse_metrics{$manager}{$owner_name}{'KPI'}{'Tickets Touched'}
-          = $tickets_touched_KPI->{$owner_name}->{'Tickets Touched'};
-    }
-    else {
-        $cse_metrics{$manager}{$owner_name}{'KPI'}{'Tickets Touched'} = 0;
-    }
-
-    if ( exists $tickets_resolved_KPI->{$owner_name} ) {
-        $cse_metrics{$manager}{$owner_name}{'KPI'}{'Tickets Resolved'}
-          = $tickets_resolved_KPI->{$owner_name}->{'Tickets Resolved'};
-    }
-    else {
-        $cse_metrics{$manager}{$owner_name}{'KPI'}{'Tickets Resolved'} = 0;
-    }
-
-    if ( exists $csat_avg_KPI->{$owner_name} ) {
-        $cse_metrics{$manager}{$owner_name}{'KPI'}{'CSAT Avg'}
-          = $csat_avg_KPI->{$owner_name}->{'CSAT Avg'};
-    }
-    else {
-        $cse_metrics{$manager}{$owner_name}{'KPI'}{'CSAT Avg'} = 0;
-    }
-
-    if ( exists $new_kb_articles_KPI->{$owner_name} ) {
-        $cse_metrics{$manager}{$owner_name}{'KPI'}{'New KB articles'}
-          = $new_kb_articles_KPI->{$owner_name}->{'New KB articles'};
-    }
-    else {
-        $cse_metrics{$manager}{$owner_name}{'KPI'}{'New KB articles'} = 0;
-    }
 
     # Calculate KB Linking % for per CSE
     if ( ( exists $kb_linking_KPI->{$owner_name} )
@@ -441,45 +539,6 @@ while( my $employee_rh = $employee_sth->fetchrow_hashref) {
     }
     else {
         $cse_metrics{$manager}{$owner_name}{'KPI'}{'KB linking %'} = 0;
-    }
-
-    if ( exists $avg_resolution_SPI->{$owner_name} ) {
-        $cse_metrics{$manager}{$owner_name}{'SPI'}{'Avg Ticket Resolution Time'}
-          = $avg_resolution_SPI->{$owner_name}->{'Avg Ticket Resolution Time'};
-    }
-    else {
-        $cse_metrics{$manager}{$owner_name}{'SPI'}{'Avg Ticket Resolution Time'}
-          = 0;
-    }
-
-    if ( exists $avg_interactions_per_ticket_SPI->{$owner_name} ) {
-        $cse_metrics{$manager}{$owner_name}{'SPI'}
-{'Avg Interactions Per Ticket'}
-          = $avg_interactions_per_ticket_SPI->{$owner_name}->
-{'Avg Interactions Per Ticket'};
-    }
-    else {
-        $cse_metrics{$manager}{$owner_name}{'SPI'}
-{'Avg Interactions Per Ticket'} = 0;
-    }
-
-    if ( exists $p1_p2_tickets_SPI->{$owner_name} ) {
-        $cse_metrics{$manager}{$owner_name}{'SPI'}{'P1/P2 Tickets'}
-          = $p1_p2_tickets_SPI->{$owner_name}->{'P1/P2 Tickets'};
-    }
-    else {
-        $cse_metrics{$manager}{$owner_name}{'SPI'}{'P1/P2 Tickets'} = 0;
-    }
-
-    if ( exists $management_escalated_tickets_SPI->{$owner_name} ) {
-        $cse_metrics{$manager}{$owner_name}{'SPI'}
-{'Management Escalated Tickets'}
-          = $management_escalated_tickets_SPI->{$owner_name}->
-{'Management Escalated Tickets'};
-    }
-    else {
-        $cse_metrics{$manager}{$owner_name}{'SPI'}
-{'Management Escalated Tickets'} = 0;
     }
 
     if ( exists $low_cast_questions_SPI->{$owner_name} ) {
@@ -514,27 +573,6 @@ while( my $employee_rh = $employee_sth->fetchrow_hashref) {
         $cse_metrics{$manager}{$owner_name}{'SPI'}{'Total CSAT Surveys'} = 0;
     }
 
-#    if ( exists $current_ticket_backlog_SPI->{$owner_name} ) {
-#        $cse_metrics{$manager}{$owner_name}{'SPI'}
-#{'Current Ticket Backlog'}
-#          = $current_ticket_backlog_SPI->{$owner_name}
-#{'Current Ticket Backlog'};
-#    }
-#    else {
-#        $cse_metrics{$manager}{$owner_name}{'SPI'}
-#{'Current Ticket Backlog'} = 0;
-#    }
-
-#    if ( exists $average_ticket_backlog_SPI->{$owner_name} ) {
-#        $cse_metrics{$manager}{$owner_name}{'SPI'}
-#{'Average Ticket Backlog'}
-#          = $average_ticket_backlog_SPI->{$owner_name}
-#{'Average Ticket Backlog'};
-#    }
-#    else {
-#        $cse_metrics{$manager}{$owner_name}{'SPI'}
-#{'Average Ticket Backlog'} = 0;
-#    }
 }
 
 #----------------------------------------------------------------------
@@ -1000,12 +1038,9 @@ sub new_kb_articles_KPI {
 #----------------------------------------------------------------------
 sub kb_linking_KPI {
 
-    my $weekends   = shift;
+    my $months     = shift;
     my $rt_dbh     = shift;
     my $report_dbh = shift;
-
-    my $report_start = $weekends->{'start_weekend'};
-    my $report_stop  = $weekends->{'stop_weekend'};
 
     # pull out the tickets that have the custome field - 'iKbase_ID' from RT
     my $kb_linked_sql = "
@@ -1027,16 +1062,6 @@ sub kb_linking_KPI {
     my $kb_linked_sth = $rt_dbh->prepare($kb_linked_sql)
       or die $rt_dbh->errstr;
 
-    $kb_linked_sth->execute($report_start, $report_stop)
-      or die $kb_linked_sth->errstr;
-
-    my @kb_tickets = qw//;
-    while ( my $kb_linked_rh = $kb_linked_sth->fetchrow_hashref ) {
-
-        my $ticket_number = $kb_linked_rh->{'Id'};
-        push @kb_tickets, $ticket_number;
-    }
-
     # pull out the tickets which their status is 'Resolved' from report database
     my $resolved_sql = "
         SELECT
@@ -1053,20 +1078,39 @@ sub kb_linking_KPI {
     my $resolved_sth = $report_dbh->prepare($resolved_sql)
       or die $report_dbh->errstr;
 
-    $resolved_sth->execute($report_start, $report_stop)
-      or die $resolved_sth->errstr;
-
     my %kb_linking_metric;
-    while ( my $resolved_rh = $resolved_sth->fetchrow_hashref ) {
+    foreach my $month ( keys %{$months}) {
 
-        my $owner         = $resolved_rh->{'owner'};
-        my $ticket_number = $resolved_rh->{'case_number'};
+        next if ( $month eq 'months_order' );
 
-        if ( grep {$ticket_number eq $_} @kb_tickets ) {
-            $kb_linking_metric{$owner}{'KB linking %'} += 1;
+        my $month_start = $months->{$month}[0] . " 00:00:00";
+        my $month_end   = $months->{$month}[1] . " 00:00:00";
+
+        $kb_linked_sth->execute($month_start, $month_end)
+          or die $kb_linked_sth->errstr;
+
+        my @kb_tickets = qw//;
+        while ( my $kb_linked_rh = $kb_linked_sth->fetchrow_hashref ) {
+
+            my $ticket_number = $kb_linked_rh->{'Id'};
+            push @kb_tickets, $ticket_number;
         }
-        else {
-            $kb_linking_metric{$owner}{'KB linking %'} += 0;
+
+        $resolved_sth->execute($month_start, $month_end)
+          or die $resolved_sth->errstr;
+
+        while ( my $resolved_rh = $resolved_sth->fetchrow_hashref ) {
+
+            my $owner         = $resolved_rh->{'owner'};
+            my $ticket_number = $resolved_rh->{'case_number'};
+
+            if ( grep {$ticket_number eq $_} @kb_tickets ) {
+                $kb_linking_metric{$owner}{'KB linking %'}{$month} += 1;
+            }
+            else {
+                $kb_linking_metric{$owner}{'KB linking %'}{$month} += 0;
+            }
+
         }
 
     }
@@ -1080,7 +1124,7 @@ sub kb_linking_KPI {
 #----------------------------------------------------------------------
 sub avg_resolution_SPI {
 
-    my $weekends = shift;
+    my $months = shift;
     my $dbh      = shift;
 
     my $sql = "SELECT
@@ -1099,18 +1143,24 @@ sub avg_resolution_SPI {
                GROUP BY owner";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
-    my $report_start = $weekends->{'start_weekend'};
-    my $report_stop  = $weekends->{'stop_weekend'};
-
-    $sth->execute($report_start, $report_stop) or die $sth->errstr;
-
     my %avg_resolution_metric;
-    while( my $rh = $sth->fetchrow_hashref ) {
-        my $owner       = $rh->{'owner'};
-        my $avg_time    = $rh->{'avg_ticket_resolution_time'};
+    foreach my $month ( keys %{$months}) {
 
-        $avg_resolution_metric{$owner}{'Avg Ticket Resolution Time'}
-          = $avg_time;
+        next if ( $month eq 'months_order' );
+
+        my $month_start = $months->{$month}[0] . " 00:00:00";
+        my $month_end   = $months->{$month}[1] . " 00:00:00";
+
+        $sth->execute($month_start, $month_end) or die $sth->errstr;
+
+        while( my $rh = $sth->fetchrow_hashref ) {
+            my $owner       = $rh->{'owner'};
+            my $avg_time    = $rh->{'avg_ticket_resolution_time'};
+
+            $avg_resolution_metric{$owner}{'Avg Ticket Resolution Time'}{$month}
+              = $avg_time;
+        }
+
     }
 
     return \%avg_resolution_metric;
@@ -1121,8 +1171,8 @@ sub avg_resolution_SPI {
 #----------------------------------------------------------------------
 sub avg_interactions_per_ticket_SPI {
 
-    my $weekends = shift;
-    my $dbh      = shift;
+    my $months = shift;
+    my $dbh    = shift;
 
     my $sql = "SELECT
                  IF(LOCATE('\@', cse) = 0,
@@ -1139,18 +1189,25 @@ sub avg_interactions_per_ticket_SPI {
                GROUP BY cse";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
-    my $report_start = $weekends->{'start_weekend'};
-    my $report_stop  = $weekends->{'stop_weekend'};
-    
-    $sth->execute($report_start, $report_stop) or die $sth->errstr;
-
     my %avg_interactions_metric;
-    while( my $rh = $sth->fetchrow_hashref ) {
-        my $owner            = $rh->{'owner'};
-        my $avg_interactions = $rh->{'avg_interactions'};
+    foreach my $month ( keys %{$months}) {
 
-        $avg_interactions_metric{$owner}{'Avg Interactions Per Ticket'}
-          = $avg_interactions;
+        next if ( $month eq 'months_order' );
+
+        my $month_start = $months->{$month}[0] . " 00:00:00";
+        my $month_end   = $months->{$month}[1] . " 00:00:00";
+
+        $sth->execute($month_start, $month_end) or die $sth->errstr;
+
+        while( my $rh = $sth->fetchrow_hashref ) {
+            my $owner            = $rh->{'owner'};
+            my $avg_interactions = $rh->{'avg_interactions'};
+
+            $avg_interactions_metric{$owner}{'Avg Interactions Per Ticket'}
+{$month}
+              = $avg_interactions;
+        }
+
     }
 
     return \%avg_interactions_metric;
@@ -1162,8 +1219,8 @@ sub avg_interactions_per_ticket_SPI {
 #----------------------------------------------------------------------
 sub p1_p2_tickets_SPI {
 
-    my $weekends = shift;
-    my $dbh      = shift;
+    my $months = shift;
+    my $dbh    = shift;
 
     my $sql = "SELECT
                  IF(LOCATE('\@', owner) = 0,
@@ -1180,17 +1237,23 @@ sub p1_p2_tickets_SPI {
                GROUP BY owner";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
-    my $report_start = $weekends->{'start_weekend'};
-    my $report_stop  = $weekends->{'stop_weekend'};
-
-    $sth->execute($report_start, $report_stop) or die $sth->errstr;
-
     my %p1_p2_tickets_metric;
-    while(my $rh = $sth -> fetchrow_hashref) {
-        my $owner       = $rh->{'owner'};
-        my $p1_p2       = $rh->{'p1_p2'};
+    foreach my $month ( keys %{$months}) {
 
-        $p1_p2_tickets_metric{$owner}{'P1/P2 Tickets'} = $p1_p2;
+        next if ( $month eq 'months_order' );
+
+        my $month_start = $months->{$month}[0] . " 00:00:00";
+        my $month_end   = $months->{$month}[1] . " 00:00:00";
+
+        $sth->execute($month_start, $month_end) or die $sth->errstr;
+
+        while(my $rh = $sth -> fetchrow_hashref) {
+            my $owner       = $rh->{'owner'};
+            my $p1_p2       = $rh->{'p1_p2'};
+
+            $p1_p2_tickets_metric{$owner}{'P1/P2 Tickets'}{$month} = $p1_p2;
+        }
+
     }
 
     return \%p1_p2_tickets_metric
@@ -1201,8 +1264,8 @@ sub p1_p2_tickets_SPI {
 #----------------------------------------------------------------------
 sub management_escalated_tickets_SPI {
 
-    my $weekends = shift;
-    my $dbh      = shift;
+    my $months = shift;
+    my $dbh    = shift;
 
     my $sql = "SELECT
                  IF(LOCATE('\@', u.Name) = 0,
@@ -1226,20 +1289,26 @@ sub management_escalated_tickets_SPI {
                GROUP BY owner";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
-    my $report_start = $weekends->{'start_weekend'};
-    my $report_stop  = $weekends->{'stop_weekend'};
-
-    $sth->execute($report_start, $report_stop) or die $sth->errstr;
-
     my %management_escalated_tickets_metric;
-    while(my $rh = $sth -> fetchrow_hashref) {
-        my $owner = $rh->{'owner'};
-        my $management_escalated_tickets
-          = $rh->{'management_escalated_tickets'};
+    foreach my $month ( keys %{$months}) {
 
-        $management_escalated_tickets_metric{$owner}
-{'Management Escalated Tickets'}
-          = $management_escalated_tickets;
+        next if ( $month eq 'months_order' );
+
+        my $month_start = $months->{$month}[0] . " 00:00:00";
+        my $month_end   = $months->{$month}[1] . " 00:00:00";
+
+        $sth->execute($month_start, $month_end) or die $sth->errstr;
+
+        while(my $rh = $sth -> fetchrow_hashref) {
+            my $owner = $rh->{'owner'};
+            my $management_escalated_tickets
+              = $rh->{'management_escalated_tickets'};
+
+            $management_escalated_tickets_metric{$owner}
+{'Management Escalated Tickets'}{$month}
+              = $management_escalated_tickets;
+        }
+
     }
 
     return \%management_escalated_tickets_metric
@@ -1250,8 +1319,8 @@ sub management_escalated_tickets_SPI {
 #----------------------------------------------------------------------
 sub low_cast_questions_SPI {
 
-    my $weekends = shift;
-    my $dbh      = shift;
+    my $months = shift;
+    my $dbh    = shift;
 
     my $sql = "SELECT
                  owner,
@@ -1323,17 +1392,24 @@ sub low_cast_questions_SPI {
                 GROUP BY owner";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
-    my $report_start = $weekends->{'start_weekend'};
-    my $report_stop  = $weekends->{'stop_weekend'};
-
-    $sth->execute($report_start, $report_stop) or die $sth->errstr;
-
     my %low_cast_questions_metric;
-    while(my $rh = $sth -> fetchrow_hashref) {
-        my $owner          = $rh->{'owner'};
-        my $total_low_csat = $rh->{'total_low_csat'};
+    foreach my $month ( keys %{$months}) {
 
-        $low_cast_questions_metric{$owner}{'Low CSATs'} = $total_low_csat;
+        next if ( $month eq 'months_order' );
+
+        my $month_start = $months->{$month}[0] . " 00:00:00";
+        my $month_end   = $months->{$month}[1] . " 00:00:00";
+
+        $sth->execute($month_start, $month_end) or die $sth->errstr;
+
+        while(my $rh = $sth -> fetchrow_hashref) {
+            my $owner          = $rh->{'owner'};
+            my $total_low_csat = $rh->{'total_low_csat'};
+
+            $low_cast_questions_metric{$owner}{'Low CSATs'}{$month}
+              = $total_low_csat;
+        }
+
     }
 
     return \%low_cast_questions_metric
@@ -1344,8 +1420,8 @@ sub low_cast_questions_SPI {
 #----------------------------------------------------------------------
 sub high_csat_questions_SPI {
 
-    my $weekends = shift;
-    my $dbh      = shift;
+    my $months = shift;
+    my $dbh    = shift;
 
     my $sql = "SELECT
                  owner,
@@ -1417,17 +1493,24 @@ sub high_csat_questions_SPI {
                 GROUP BY owner";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
-    my $report_start = $weekends->{'start_weekend'};
-    my $report_stop  = $weekends->{'stop_weekend'};
-
-    $sth->execute($report_start, $report_stop) or die $sth->errstr;
-
     my %high_csat_questions_metric;
-    while(my $rh = $sth -> fetchrow_hashref) {
-        my $owner           = $rh->{'owner'};
-        my $total_high_csat = $rh->{'total_high_csat'};
+    foreach my $month ( keys %{$months}) {
 
-        $high_csat_questions_metric{$owner}{'High CSATs'} = $total_high_csat;
+        next if ( $month eq 'months_order' );
+
+        my $month_start = $months->{$month}[0] . " 00:00:00";
+        my $month_end   = $months->{$month}[1] . " 00:00:00";
+
+        $sth->execute($month_start, $month_end) or die $sth->errstr;
+
+        while(my $rh = $sth -> fetchrow_hashref) {
+            my $owner           = $rh->{'owner'};
+            my $total_high_csat = $rh->{'total_high_csat'};
+
+            $high_csat_questions_metric{$owner}{'High CSATs'}{$month}
+              = $total_high_csat;
+        }
+
     }
 
     return \%high_csat_questions_metric
@@ -1438,7 +1521,7 @@ sub high_csat_questions_SPI {
 #----------------------------------------------------------------------
 sub all_csat_questions_SPI {
 
-    my $weekends = shift;
+    my $months = shift;
     my $dbh      = shift;
 
     my $sql = "SELECT
@@ -1511,17 +1594,24 @@ sub all_csat_questions_SPI {
                 GROUP BY owner";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
-    my $report_start = $weekends->{'start_weekend'};
-    my $report_stop  = $weekends->{'stop_weekend'};
-
-    $sth->execute($report_start, $report_stop) or die $sth->errstr;
-
     my %all_csat_questions_metric;
-    while(my $rh = $sth -> fetchrow_hashref) {
-        my $owner      = $rh->{'owner'};
-        my $total_csat = $rh->{'total_csat'};
+    foreach my $month ( keys %{$months}) {
 
-        $all_csat_questions_metric{$owner}{'All CSATs'} = $total_csat;
+        next if ( $month eq 'months_order' );
+
+        my $month_start = $months->{$month}[0] . " 00:00:00";
+        my $month_end   = $months->{$month}[1] . " 00:00:00";
+
+        $sth->execute($month_start, $month_end) or die $sth->errstr;
+
+        while(my $rh = $sth -> fetchrow_hashref) {
+            my $owner      = $rh->{'owner'};
+            my $total_csat = $rh->{'total_csat'};
+
+            $all_csat_questions_metric{$owner}{'All CSATs'}{$month}
+              = $total_csat;
+        }
+
     }
 
     return \%all_csat_questions_metric
@@ -1532,7 +1622,7 @@ sub all_csat_questions_SPI {
 #----------------------------------------------------------------------
 sub total_cast_surveys_SPI {
 
-    my $weekends = shift;
+    my $months = shift;
     my $dbh      = shift;
 
     my $sql = "SELECT
@@ -1548,18 +1638,24 @@ sub total_cast_surveys_SPI {
                GROUP BY owner";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
-    my $report_start = $weekends->{'start_weekend'};
-    my $report_stop  = $weekends->{'stop_weekend'};
-
-    $sth->execute($report_start, $report_stop) or die $sth->errstr;
-
     my %total_cast_surveys_metric;
-    while(my $rh = $sth -> fetchrow_hashref) {
-        my $owner              = $rh->{'owner'};
-        my $total_csat_surveys = $rh->{'total_csat_surveys'};
+    foreach my $month ( keys %{$months}) {
 
-        $total_cast_surveys_metric{$owner}{'Total CSAT Surveys'}
-          = $total_csat_surveys;
+        next if ( $month eq 'months_order' );
+
+        my $month_start = $months->{$month}[0] . " 00:00:00";
+        my $month_end   = $months->{$month}[1] . " 00:00:00";
+
+        $sth->execute($month_start, $month_end) or die $sth->errstr;
+
+        while(my $rh = $sth -> fetchrow_hashref) {
+            my $owner              = $rh->{'owner'};
+            my $total_csat_surveys = $rh->{'total_csat_surveys'};
+
+            $total_cast_surveys_metric{$owner}{'Total CSAT Surveys'}{$month}
+              = $total_csat_surveys;
+        }
+
     }
 
     return \%total_cast_surveys_metric
@@ -1570,8 +1666,8 @@ sub total_cast_surveys_SPI {
 #----------------------------------------------------------------------
 sub current_ticket_backlog_SPI {
 
-    my $weekends = shift;
-    my $dbh      = shift;
+    my $months = shift;
+    my $dbh    = shift;
 
     my $sql = "SELECT
                  SUBSTR(owner, 1, LOCATE('\@', owner) - 1) AS owner,
@@ -1585,68 +1681,28 @@ sub current_ticket_backlog_SPI {
                GROUP BY owner";
     my $sth = $dbh->prepare($sql) or die $dbh->errstr;
 
-    my $report_start = $weekends->{'start_weekend'};
-    my $report_stop  = $weekends->{'stop_weekend'};
-
-    $sth->execute($report_start, $report_stop) or die $sth->errstr;
-
     my %current_ticket_backlog_metric;
-    while(my $rh = $sth -> fetchrow_hashref) {
-        my $owner           = $rh->{'owner'};
-        my $current_backlog = $rh->{'current_backlog'};
+    foreach my $month ( keys %{$months}) {
 
-        $current_ticket_backlog_metric{$owner}{'Current Ticket Backlog'}
-          = $current_backlog;
+        next if ( $month eq 'months_order' );
+
+        my $month_start = $months->{$month}[0] . " 00:00:00";
+        my $month_end   = $months->{$month}[1] . " 00:00:00";
+
+        $sth->execute($month_start, $month_end) or die $sth->errstr;
+
+        while(my $rh = $sth -> fetchrow_hashref) {
+            my $owner           = $rh->{'owner'};
+            my $current_backlog = $rh->{'current_backlog'};
+
+            $current_ticket_backlog_metric{$owner}{'Current Ticket Backlog'}
+{$month}
+              = $current_backlog;
+        }
+
     }
 
     return \%current_ticket_backlog_metric
-}
-
-#----------------------------------------------------------------------
-# Average Ticket Backlog
-#----------------------------------------------------------------------
-sub average_ticket_backlog_SPI {
-
-    my $weekends = shift;
-    my $weeks    = shift;
-    my $dbh      = shift;
-
-    my $sql = "SELECT
-                 IF(LOCATE('\@', u.Name) = 0,
-                    u.Name,
-                    LEFT(u.Name, LOCATE('\@', u.Name)-1)
-                 ) AS owner,
-                 ROUND(
-                   (COUNT(t.id) / $weeks)
-                 , 2) AS average_backlog_per_week
-               FROM
-                 Tickets t, Users u
-               WHERE 1
-                 AND (t.Status   = 'open'
-                     OR t.Status = 'stalled'
-                     OR t.Status = 'new')
-                 AND t.Owner = u.id
-                 AND u.Name <> 'Nobody'
-                 AND t.Created >= ?
-                 AND t.Created < ?
-               GROUP BY owner";
-    my $sth = $dbh->prepare($sql) or die $dbh->errstr;
-
-    my $report_start = $weekends->{'start_weekend'};
-    my $report_stop  = $weekends->{'stop_weekend'};
-
-    $sth->execute($report_start, $report_stop) or die $sth->errstr;
-
-    my %average_ticket_backlog_metric;
-    while(my $rh = $sth -> fetchrow_hashref) {
-        my $owner                    = $rh->{'owner'};
-        my $average_backlog_per_week = $rh->{'average_backlog_per_week'};
-
-        $average_ticket_backlog_metric{$owner}{'Average Ticket Backlog'}
-          = $average_backlog_per_week;
-    }
-
-    return \%average_ticket_backlog_metric
 }
 
 #----------------------------------------------------------------------
