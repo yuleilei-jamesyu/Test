@@ -1,0 +1,86 @@
+centos下lighttpd、fastcgi、flup和django配置
+
+1）安装fastcgi
+
+wget http://www.fastcgi.com/dist/fcgi-2.4.0.tar.gz
+tar zxvf fcgi-2.4.0.tar.gz
+cd fcgi-2.4.0
+./configure
+make&&make install
+
+2)安装flup
+wget -c http://www.saddi.com/software/flup/dist/flup-1.0.tar.gz
+tar xzvf flup-1.0.tar.gz
+cd flup-1.0
+python setup.py install
+
+3）安装 lighttpd(centos 4.4需要先安装pcre软件包：yum install pcre)
+
+wget http://www.lighttpd.net/download/lighttpd-1.4.18.tar.gz
+tar zxvf light*.tar.gz
+cd light*
+./configure
+make
+make instal
+cp doc/sysconfig.lighttpd /etc/sysconfig/lighttpd
+mkdir /etc/lighttpd
+cp doc/lighttpd.conf /etc/lighttpd/lighttpd.conf
+cp doc/rc.lighttpd.redhat /etc/init.d/lighttpd
+
+修改/etc/init.d/lighttpd，把
+prog=”lighttpd”下的
+lighttpd="/usr/sbin/lighttpd"改为
+lighttpd="usr/local/sbin/lighttpd"
+
+创建/var/log/lighttpd
+
+4）建立fastcgi脚本：
+
+[root@racs mysite]# more cgi.sh
+#!/bin/bash  
+
+# Replace these three settings.  
+PROJDIR="/usr/local/Django/mysite"
+PIDFILE="$PROJDIR/mysite.pid"
+SOCKET="$PROJDIR/mysite.sock"
+
+cd $PROJDIR  
+if [ -f $PIDFILE ]; then  
+    kill `cat -- $PIDFILE`  
+    rm -f -- $PIDFILE  
+fi  
+
+exec /usr/bin/python ./manage.py runfcgi method=threaded socket=$SOCKET pidfile=$PIDFILE
+
+5）修改lighttpd配置文件lighttpd.conf:
+
+server.modules              = (
+                                 "mod_rewrite",
+                                "mod_alias",
+                                "mod_access",
+                                 "mod_fastcgi",                                            
+                               "mod_accesslog")
+
+server.document-root        = "/usr/local/Django/mysite/"
+
+fastcgi.server = (
+    "/mysite.fcgi" => (
+        "main" => (
+            # Use host / port instead of socket for TCP fastcgi
+            # "host" => "127.0.0.1",
+            # "port" => 3033,
+            "socket" => "/usr/local/Django/mysite/mysite.sock",
+            "check-local" => "disable",
+        )
+    ),
+)
+alias.url = (
+    "/media/" => "/usr/local/Django/mysite/media/",
+)
+url.rewrite-once = (
+    "^(/media.*)$" => "$1",
+    "^/favicon\.ico$" => "/media/favicon.ico",
+    "^(/.*)$" => "/mysite.fcgi$1",
+)
+
+6)重启lighttpd服务，并运行cgi.sh脚本。
