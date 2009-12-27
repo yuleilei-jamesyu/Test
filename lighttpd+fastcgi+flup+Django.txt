@@ -1,0 +1,95 @@
+安装需要的软件
+1)fastcgi
+wget http://www.fastcgi.com/dist/fcgi-2.4.0.tar.gz
+
+tar zxvf fcgi-2.4.0.tar.gz
+cd fcgi-2.4.0
+./configure
+make&&make install
+
+2)flup
+wget http://www.saddi.com/software/flup/dist/flup-1.0.1.tar.gz
+
+tar xzvf flup-1.0.1.tar.gz
+cd flup-1.0.1
+python setup.py install
+
+3)Django(install an official release here)
+wget http://www.djangoproject.com/download/1.1.1/tarball/
+
+tar xzvf Django-1.1.1.tar.gz
+cd Django-1.1.1
+python setup.py install
+
+4）lighttpd
+apt-get install lighttpd
+
+
+配置环境
+1)create the first Django project
+cd ~
+mkdir django-projects
+cd /home/yulei/django-projects
+python /usr/bin/django-admin.py startproject mysite
+
+2)
+cd /var/www
+ln -s /home/yulei/django-projects/mysite mysite
+
+3)
+vi mysite.fcgi
+
+code:
+#!/usr/bin/python
+import sys, os
+
+# Add a custom Python path.
+sys.path.insert(0, "/home/yulei/django-projects")
+
+# Switch to the directory of your project. (Optional.)
+# os.chdir("/home/yulei/django-projects/mysite")
+
+# Set the DJANGO_SETTINGS_MODULE environment variable.
+os.environ['DJANGO_SETTINGS_MODULE'] = "mysite.settings"
+
+from django.core.servers.fastcgi import runfastcgi
+runfastcgi(method="threaded", daemonize="false")
+
+4)
+cd /etc/lighttpd
+vi lighttpd.conf
+
+add mod_rewrite, mod_fastcgi to server.modules
+
+attach the following code:
+server.document-root = "/var/www/mysite"
+#accesslog.filename = "/var/log/lighttpd/localhost.django-access.log"
+
+fastcgi.server = (
+        "/mysite.fcgi" => (
+                "main" => (
+                        "bin-path" => "/home/yulei/django-projects/mysite/mysite.fcgi",
+                        # Use host / port instead of socket for TCP fastcgi
+                        "host" => "127.0.0.1",
+                        "port" => 3033,
+
+                        #"socket" => "/home/yulei/django-projects/mysite/mysite.sock",
+                        "check-local" => "disable",
+                        "min-procs" => 2,
+                        "max-procs" => 4,
+                )
+        ),
+)
+
+alias.url = (
+                "/media/" => "/var/www/mysite/media/",
+)
+
+url.rewrite-once = (
+                "^(/media.*)$" => "$1",
+                "^/favicon\.ico$" => "/media/favicon.ico",
+                "^(/.*)$" => "/mysite.fcgi$1",
+)
+
+5)
+sudo /etc/init.d/lighttpd restart
