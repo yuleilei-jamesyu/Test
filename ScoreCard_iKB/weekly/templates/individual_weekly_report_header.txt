@@ -1,0 +1,35 @@
+<html>
+<head>
+<style type="text/css"> 
+.score_table {
+  font-size: 13px;
+  border: 1px solid #CCCCCC;
+}
+
+.suggestion_table {
+  font-size: 13px;
+  border: 1px solid #CCCCCC;
+}
+
+.title_row {
+  font-weight: bold;
+  color: #00328A;
+  background-color: #F0F0F0
+}
+
+.normal_row {
+  font-weight: normal;
+}
+
+.normal_cell {
+  padding-left: 5px;
+  padding-top: 6px;  
+  border: 1px solid #CCCCCC;
+}
+
+p {
+  font-size: 13px;
+}
+</style>
+</head>
+<body>
