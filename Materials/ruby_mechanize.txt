@@ -1,0 +1,5 @@
+gem install mechanize
+
+安装下面两个包之后，上面的命令执行成功。
+sudo apt-get install libxml2-dev
+sudo apt-get install libxslt1-dev
