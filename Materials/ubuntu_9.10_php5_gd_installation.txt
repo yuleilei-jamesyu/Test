@@ -1,0 +1,27 @@
+判断是否下载了GD库可以在以下路径查看
+/usr/lib/php5/20060613+lfs
+
+如果有gd.so就表示已经安装了。
+没有的话就马上安装
+sudo apt-get install php5-gd
+
+安装完成之后，再去上面的路径看看，是不是多了个gd.so
+
+其实也可以用phpinfo()函数查看
+当然需要先重启apache2服务器
+sudo /etc/init.d/apache2 restart
+在 additional .ini files parsed 那一栏中如果有/etc/php5/apache2/conf.d/gd.ini 就表示已经成功安装了GD库
+
+接下来，就是要让apache2启动的时候载入了。
+
+这时需要更改php.ini文件
+sudo gedit /etc/php5/apache2/php.ini
+增加一行
+extension=gd.so
+
+然后重启apache2服务器
+$ sudo /etc/init.d/apache2 restart
+
+
+reference link:
+http://home.phpchina.com/space.php?uid=35330&do=blog&id=136669

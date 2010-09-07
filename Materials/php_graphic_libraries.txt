@@ -1,0 +1,6 @@
+JpGraph - a free php diagram library
+http://jpgraph.net/
+
+pChart - a PHP class to build charts
+http://pchart.sourceforge.net/
+(completely free)
