@@ -1,0 +1,60 @@
+vmw077-clinux03.dev.sbr.ironport.com
+jameyu/Ironport
+
+(03:04:36 PM) Mauricio Palomar(mapaloma - Business Analyst): mysql -u root
+(03:04:41 PM) Mauricio Palomar(mapaloma - Business Analyst): sopsmfg_development
+(03:04:46 PM) Mauricio Palomar(mapaloma - Business Analyst): check that db out
+(03:05:23 PM) james: done
+(03:05:27 PM) Mauricio Palomar(mapaloma - Business Analyst): there is an issue with one of the tables:
+(03:05:28 PM) Mauricio Palomar(mapaloma - Business Analyst): mysql> select queue_id,count(*) from companies_queues group by queue_id;
++----------+----------+
+| queue_id | count(*) |
++----------+----------+
+|        1 |      235 | 
+|        2 |     1182 | 
+|        4 |      517 | 
+|        5 |     1355 | 
+|        6 |     2128 | 
+|        7 |     9427 | 
+|        8 |     4600 | 
+|        9 |      272 | 
++----------+----------+
+(03:05:34 PM) Mauricio Palomar(mapaloma - Business Analyst): I am missing queue '3'
+(03:05:48 PM) Mauricio Palomar(mapaloma - Business Analyst): let me show you the script that creates the data for this table
+(03:05:54 PM) james: ok
+(03:06:17 PM) Mauricio Palomar(mapaloma - Business Analyst): you will need to sync perforce to get the latest version
+(03:06:25 PM) james: thanks
+(03:06:30 PM) Mauricio Palomar(mapaloma - Business Analyst): /sops/apps/projects/ask_oracle/bin/support_entitlement.pl
+(03:06:39 PM) Mauricio Palomar(mapaloma - Business Analyst): current this script populates two tables
+(03:06:43 PM) Mauricio Palomar(mapaloma - Business Analyst): companies_queues
+(03:06:44 PM) Mauricio Palomar(mapaloma - Business Analyst): and 
+(03:06:49 PM) Mauricio Palomar(mapaloma - Business Analyst): inventory_queues
+(03:07:00 PM) Mauricio Palomar(mapaloma - Business Analyst): inventory_queues should be correct and up to date
+(03:07:12 PM) Mauricio Palomar(mapaloma - Business Analyst): companies_queues needs a little work - we are missing queue '3'
+(03:07:25 PM) Mauricio Palomar(mapaloma - Business Analyst): run this command on mysql
+(03:07:30 PM) Mauricio Palomar(mapaloma - Business Analyst): select * from queues
+(03:07:35 PM) james: get it, let me look into this script for that table.
+(03:07:51 PM) Mauricio Palomar(mapaloma - Business Analyst): do you see technolgoy / sub-technology in that table?
+(03:08:40 PM) james: yes
+(03:08:43 PM) Mauricio Palomar(mapaloma - Business Analyst): cool 
+(03:08:54 PM) Mauricio Palomar(mapaloma - Business Analyst): check out the files to get the new schema and data here:
+(03:09:09 PM) Mauricio Palomar(mapaloma - Business Analyst): sops/apps/projects/ask_oracle/sql/schema_changes
+(03:09:11 PM) Mauricio Palomar(mapaloma - Business Analyst): files:
+(03:09:30 PM) Mauricio Palomar(mapaloma - Business Analyst):  create_table_queues_aug_31_2010.sql
+(03:09:48 PM) Mauricio Palomar(mapaloma - Business Analyst): actually - all the files in that directory
+(03:09:53 PM) Mauricio Palomar(mapaloma - Business Analyst): ops/apps/projects/ask_oracle/sql/schema_change
+(03:09:57 PM) james: ok
+(03:10:16 PM) Mauricio Palomar(mapaloma - Business Analyst): it has the new schema for queues ... the csv to load data ... and the sql to load the data
+(03:10:33 PM) Mauricio Palomar(mapaloma - Business Analyst): so you can recreate the schema locally if you want
+(03:11:25 PM) james: you mean we need to recreate the queues table based on this schema changes?
+(03:11:42 PM) Mauricio Palomar(mapaloma - Business Analyst): currently there is a queues table.
+(03:11:55 PM) Mauricio Palomar(mapaloma - Business Analyst): but when we move to c3 ... we need to update this table with this new schema
+(03:12:04 PM) Mauricio Palomar(mapaloma - Business Analyst): it just creates updated once
+(03:12:16 PM) Mauricio Palomar(mapaloma - Business Analyst): we can do that manually
+(03:12:24 PM) james: ok
+(03:12:40 PM) Mauricio Palomar(mapaloma - Business Analyst): i'm just showing it to you - so you can see how I created that table
+(03:12:57 PM) Mauricio Palomar(mapaloma - Business Analyst): read through the code and see why Queue '3' is not getting populated
+(03:13:36 PM) james: ok, I will look into it.:)
+(03:13:57 PM) Mauricio Palomar(mapaloma - Business Analyst): if a customer owns SMA M1x0 ... and a WSA product then they must have queue 3
+(03:14:24 PM) Mauricio Palomar(mapaloma - Business Analyst): if a customer owns SMA M1x0 ... and WSA and ESA ... then also set this field as queue 3
+
