@@ -1,0 +1,32 @@
+安装nginx
+sudo apt-get install nginx
+
+配置/etc/nginx/sites-enabled/default
+location / {
+        root   /var/www/nginx-default;
+        index  index.html index.htm index.php;
+
+        location ~.php$ {
+            fastcgi_pass 127.0.0.1:9000;
+            fastcgi_index index.php;
+            fastcgi_param SCRIPT_FILENAME /var/www/nginx-default$fastcgi_script_name;
+            include /etc/nginx/fastcgi_params;
+        }
+    }
+
+安装php5-cgi
+sudo apt-get install php5-cgi
+修改php.ini文件的cgi.fix_pathinfo数据为1，默认为0 cgi.fix_pathinfo=1; 这样php-cgi方能正常使用SCRIPT_FILENAME这个变量。
+
+安装spawn-fcgi
+sudo apt-get install spawn-fcgi
+
+启动fast_cgi
+spawn-fcgi -a 127.0.0.1 -p 9000 -C 5 -u www-data -g www-data -f /usr/bin/php-cgi
+（注意:ip，端口与nginx服务器中的cgi-pass要对应 -C表示打开几个cgi进程）
+
+启动nginx
+sudo /etc/init.d/nginx start
+
+http://localhost/config.inc.php
+
