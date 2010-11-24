@@ -1,0 +1,247 @@
+一、install EPEL(Extra Packages for Enterprise Linux)
+bash-3.2# sudo -s
+bash-3.2# rpm -Uvh http://download.fedora.redhat.com/pub/epel/5/x86_64/epel-release-5-3.noarch.rpm
+
+二、安装APC(Alternative PHP Cache)
+APC是一种对PHP有效的开放源高速缓冲储存器工具，它能够缓存opcode的php中间码。APC是一种php的缓存解决方案,目前以pecl方式发布。
+
+1，下载并解压缩安装包
+wget http://pecl.php.net/get/APC-3.1.4.tgz
+
+tar xavf APC-3.1.4.tgz
+
+2，
+cd APC-3.1.4
+/usr/bin/phpize
+可以使用whereis phpize列出phpize的路径
+(phpize - usually used to build php extension)
+可以使用如下命令安装phpize
+sudo yum install php-devel.x86_64
+
+3，
+./configure --with-php-config=/usr/bin/php-config
+
+4，
+make
+
+报错缺少pcre.h，使用如下命令来安装相关包
+yum install pcre-devel.x86_64
+
+5，
+make install
+输出的运行结果：Installing shared extensions:     /usr/lib64/php/modules/
+
+6，修改php.ini(/etc/php.ini)
+
+a, Add this line:
+extension=apc.so
+
+b, Replace "/path/to/php/extensions" with whatever path was displayed when you
+ran make install above.
+
+7，重新启动web服务器
+service httpd restart
+
+三、安装Sphinx
+./configure --prefix=/usr/local/sphinx
+make install
+
+
+四、安装 MySQL-python-1.2.3
+
+1,
+sudo tar xvzf MySQL-python-1.2.3.tar.gz
+
+cd MySQL-python-1.2.3
+sudo vim site.cfg 把 mysql_config = /usr/local/bin/mysql_config 这一行前的#去掉，并且把mysql_config的路径设置正确。
+
+sudo python setup.py build
+sudo python setup.py instal
+
+2,
+python
+import MySQLdb 如果没有报错，说明安装好了。
+
+>>> import MySQLdb
+/usr/lib64/python2.4/site-packages/MySQL_python-1.2.3-py2.4-linux-x86_64.egg/_mysql.py:3: UserWarning: Module _mysql was already imported from /usr/lib64/python2.4/si
+te-packages/MySQL_python-1.2.3-py2.4-linux-x86_64.egg/_mysql.pyc, but /home/jameyu/MySQL-python-1.2.3 is being added to sys.path
+Traceback (most recent call last):
+  File "<stdin>", line 1, in ?
+  File "MySQLdb/__init__.py", line 19, in ?
+    import _mysql
+  File "build/bdist.linux-x86_64/egg/_mysql.py", line 7, in ?
+  File "build/bdist.linux-x86_64/egg/_mysql.py", line 6, in __bootstrap__
+ImportError: libmysqlclient.so.15: cannot open shared object file: No such file or directory
+
+Fix the bug pasted above:
+a,
+cd /usr/lib
+sudo ln -s /usr/local/lib/mysql/libmysqlclient.so.15
+
+b,
+cd /usr/lib64
+sudo ln -s /usr/local/lib/mysql/libmysqlclient.so.15
+
+四、安装memcached和memcache（客户端）
+1）安装memcached
+sudo -s
+
+a, 下载并安装libevent
+wget http://www.monkey.org/~provos/libevent-2.0.7-rc.tar.gz
+
+tar -xzvf libevent-2.0.7-rc.tar.gz
+cd libevent-2.0.7
+./configure && make
+make install
+
+b, 下载并安装memcached
+wget http://memcached.googlecode.com/files/memcached-1.4.5.tar.gz
+tar -xzvf memcached-1.4.5.tar.gz
+cd memcached-1.4.5
+./configure
+make
+make test
+（报错：
+error while loading shared libraries: libevent-2.0.so.2: cannot open shared object file: No such file or directory
+
+解决方法：
+LD_DEBUG=libs memcached -v
+ln -s /usr/local/lib/libevent-2.0.so.2 /usr/lib64/libevent-2.0.so.2
+）
+
+make install
+
+c, setup memcached
+memcached -d -u root
+
+2）安装memcache
+sudo -s
+
+a, 下载并安装memcache
+（可以在此查找最新把版本： http://pecl.php.net/package/memcache）
+wget http://pecl.php.net/get/memcache-3.0.5.tgz
+
+tar -xzvf memcache-3.0.5.tgz
+cd memcache-3.0.5
+
+phpize
+./configure --enable-memcache --with-php-config=/usr/bin/php-config
+
+make && make test
+make install
+
+vim /etc/php.ini
+extension=memcache.so
+
+cp /home/jameyu/memcache-3.0.5/memcache.php /var/www/memcache.php
+vim /var/www/memcache.php
+$MEMCACHE_SERVERS[] = '127.0.0.1:11211';
+
+access this URL:
+http://dev-portal03.ironport.com/memcache.php
+
+五、使PHP支持ldap
+wget ftp://ftp.pbone.net/mirror/rpms.famillecollet.com/enterprise/5/test/x86_64/php-ldap-5.3.4-0.1.201010230430.el5.remi.x86_64.rpm
+rpm -ivh php-ldap-5.3.4-0.1.201010230430.el5.remi.x86_64.rpm
+service httpd restart
+
+六、安装Page Speed
+http://code.google.com/speed/page-speed/download.html#extension-rel
+wget https://dl-ssl.google.com/dl/linux/direct/mod-pagespeed-beta_current_x86_64.rpm
+rpm -ivh mod-pagespeed-beta_current_x86_64.rpm
+
+七、安装Berkeley DB
+wget -O db-5.1.19.NC.tar.gz http://download.oracle.com/otn/berkeley-db/db-5.1.19.NC.tar.gz --http-user=blank-eyes@163.com --http-passwd=Om5Up2J9
+tar -xzvf db-5.1.19.NC.tar.gz
+
+cd db-5.1.19.NC/build_unix
+../dist/configure
+make
+make install
+
+八、安装openldap
+
+九、安装并使用JSMIN
+
+JSMIN下载地址
+http://www.crockford.com/javascript/jsmin.html
+
+如何编译jsmin.c
+http://www.ejeliot.com/blog/73
+
+a, 下载C代码
+wget http://www.crockford.com/javascript/jsmin.c
+
+b, 编译C文件，并生成可执行文件
+gcc -o jsmin jsmin.c
+
+c, 压缩/var/www/support/js/jquery-1.3.2.source.js
+./jsmin < /var/www/support/js/jquery-1.3.2.source.js > /var/www/support/js/jquery-1.3.2.js
+
+十、安装Minify
+http://code.google.com/p/minify/wiki/UserGuide
+
+a, 下载并使用SHA1验证文件的完整性
+wget http://minify.googlecode.com/files/minify_2.1.4_beta.zip
+
+bash-3.2# whereis sha1sum
+sha1sum: /usr/bin/sha1sum /usr/share/man/man1/sha1sum.1.gz
+bash-3.2# sha1sum minify_2.1.4_beta.zip
+5e364397288ad7884771df607069cc384bd81cee  minify_2.1.4_beta.zip
+
+
+十一、
+http://stud4.tuwien.ac.at/~e0225855/linum/linum.html
+GNU Emacs 21.4.1下
+
+a, 显示行号
+
+cd /home/jameyu/software/elisp
+wget http://stud4.tuwien.ac.at/~e0225855/linum/compat/linum.el
+
+vim ~/.emacs添加如下：
+(require 'linum)
+
+显示行号的命令：
+M-x linum-mode
+
+b, Python脚本中语法高亮
+(add-hook 'python-mode-common-hook (global-font-lock-mode))
+
+
+十二、在rhel 5.4上安装Emacs 23.2
+wget http://ftp.gnu.org/pub/gnu/emacs/emacs-23.2.tar.gz
+tar -xzvf emacs-23.2.tar.gz
+cd emacs-23.2
+./configure --with-xpm=no --with-jpeg=no --with-png=no --with-gif=no --with-tiff=no --with-x=no
+（note:
+如果使用此 configure会导致以后配置anything-startup.el报出和image-load-path相关的错误，所以使用yum来安装缺少的package。
+sudo yum install libXpm-devel.x86_64
+sudo yum install libjpeg.x86_64 libjpeg-devel.x86_64
+sudo yum install libpng.x86_64 libpng-devel.x86_64
+sudo yum install giflib.x86_64 giflib-devel.x86_64 giflib-utils.x86_64
+sudo yum install libtiff.x86_64 libtiff-devel.x86_64
+
+可以使用yum search来搜索缺少的package。
+
+安装完毕之后，直接运行./configure）
+
+make
+(if make succeed, then use this command to test: src/emacs -q)
+sudo make install
+make clean
+
+十三、安装Flex 4 SDK
+1，查看Java Runtime Environment (JRE)是否已经安装。
+dpkg -l| grep java
+2，下载并解压缩Flex 4 SDK
+wget http://download.macromedia.com/pub/flex/sdk/flex_sdk_4.1.zip
+mkdir flex
+tar -xzvf flex_sdk_4.1.zip
+3，编辑.bashrc
+vim .bashrc
+export PATH=/home/james/flex/bin:$PATH
+source ~/.bashrc
+然后使用mxmlc --help来验证是否添加成功。
+
+
