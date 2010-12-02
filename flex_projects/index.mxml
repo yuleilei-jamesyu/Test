@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" creationComplete="{httpRSS.send()}">
+<mx:HTTPService id="httpRSS" url="http://www.petefreitag.com/rss/" resultFormat="object" />
+<mx:Panel id="reader" title="Pete Freitag's Blog Reader" width="500">
+<mx:DataGrid id="entries" width="{reader.width-15}"
+dataProvider="{httpRSS.lastResult.rss.channel.item}" click="{body.htmlText=httpRSS.lastResult.rss.channel.item[entries.selectedIndex].description}">
+  <mx:columns>
+    <mx:Array>
+      <mx:DataGridColumn dataField="title" headerText="Title" />
+      <mx:DataGridColumn dataField="pubDate" headerText="Date" />
+    </mx:Array>
+  </mx:columns>
+</mx:DataGrid>
+<mx:TextArea id="body" editable="false" width="{reader.width-15}" height="300" />
+<mx:Button label="Load Blog Entries" click="{httpRSS.send()}" />
+</mx:Panel>
+</mx:Application>
