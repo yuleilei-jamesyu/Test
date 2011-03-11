@@ -198,7 +198,11 @@ if(!empty($praddress)) {
             <a target="_blank" href="#">版权声明</a>
         </div>
         <div class="foot">
-          &copy; CopyRight 2010-2010. All Rights Reserved.
+        <?php
+          $from_year = '2011';
+          $this_year = date('Y');
+          echo "&copy; CopyRight $from_year-$this_year. All Rights Reserved";
+        ?>
         </div>
         <script type="text/javascript">Init();</script>
         </center>
