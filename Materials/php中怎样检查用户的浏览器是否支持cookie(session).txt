@@ -1,0 +1,14 @@
+testCookie.php
+
+if($_GET['check']=='ok'){  //已经设置过cookie，开始检测
+  if($_COOKIE['mycookie']==$_GET['mycookie']){
+    echo('支持');
+  }
+  else{
+    echo('不支持');
+  }
+}
+else{  //设置cookie，并跳转到检测页面
+  setcookie('mycookie','hello',1000);
+  header('Location: testCookie.php?check=ok&mycookie=hello');
+}

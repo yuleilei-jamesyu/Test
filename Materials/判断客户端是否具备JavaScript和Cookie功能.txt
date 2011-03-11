@@ -1,0 +1,71 @@
+在我的站点上，我想确认访问者是否具备cookies和JavaScript功能。维持会话状态在许多情况下都很复杂，而且也要考虑到表单的验证。在我的站点上，我使用了客户端JavaScript进行表单验证，所以要完成验证工作，用户的浏览器必须要具备JavaScript功能。同时，我还使用了Session变量，这就需要访问者的浏览器支持Cookies功能。为了确认这些前提条件的存在，我使用了一段小巧的代码来检查用户是否具备JavaScript和Cookies功能。如果用户不具备这2个条件，就拒绝他们登录网站。在这篇文章里，也介绍我的站点的登录页面代码。
+
+开始，使用JavaScript创建一个Cookie。然后，再检查这个cookie是否存在。因为我们使用JavaScript来测试用户是否打开 Cookies功能，如果他们不具备JavaScript，但却具备Cookies，我们将会得到他们不具备Cookies功能的结果。这个结果是很好的，因为我要求用户同时具备JavaScript和Cookies功能。为了判断用户是否具备JavaScript功能，我在HTML页面上创建了一个隐藏表单域，并且在页面调用事件（onload）中调用一个JavaScript函数来改变这个隐藏表单域的数值。这样，如果表单域的数值改变了，就表示 JavaScript是生效的。
+
+首先，在HTML页面上放置一个隐藏域，并将它介于< form > ... < /form >之间。
+
+<FORM>
+
+...
+
+<input type="hidden" name="cookieexists" value="false">
+
+</FORM>
+
+只要这个域的数值是false的，那么我们就知道了用户的浏览器不支持JavaScript。注意，默认值是false，我们编写的 JavaScript函数将改变它为true。所以，如果JavaScript生效，这个JavaScript函数将运行，域的数值将变为true。在 HTML页面的Body标记中，放置调用JavaScript函数的代码，从而检查cookies(cc)：
+
+< body onload="cc()" >
+
+如果函数不执行（这种情况仅仅发生在JavaScript不生效时），cc()函数就不会改变隐藏域的数值。cc()函数的代码相当简单，如下：
+
+<script language="JavaScript">
+
+<!-
+
+function cc()
+
+{
+
+/* check for a cookie */
+
+if (document.cookie == "")
+
+{
+
+　　/* if a cookie is not found - alert user -
+
+　　 change cookieexists field value to false */
+
+　　alert("COOKIES need to be enabled!");
+
+　　/* If the user has Cookies disabled an alert will let him know
+
+　　　　that cookies need to be enabled to log on.*/
+
+　　document.Form1.cookieexists.value ="false"
+
+} else {
+
+/* this sets the value to true and nothing else will happen,
+
+　　 the user will be able to log on*/
+
+　　document.Form1.cookieexists.value ="true"
+
+}
+
+}
+
+/* Set a cookie to be sure that one exists.
+
+Note that this is outside the function*/
+
+document.cookie = 'killme' + escape('nothing')
+
+// -->
+
+</script>
+
+注意：在函数外的JavaScript代码行将在页面调入前执行，所以，也就是在cc()函数前被调用。通常，JavaScript代码块应该放在HTML页面的HEAD一节中。
+
+这样，如果JavaScript生效而Cookies不生效，用户将得到“需要打开cookies功能”的信息提示。如果JavaScript不生效，就不会显示任何信息，这种情况下，我们不能判断cookies功能是否打开。当表单提交时，检查隐藏域cookieexists的数值。如果等于 false，那么表示不支持JavaScript。
