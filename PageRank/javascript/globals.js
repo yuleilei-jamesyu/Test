@@ -346,11 +346,11 @@ function ToolBoxAdd() {
         alert("不能添加空值。");
         return;
     }
-    ajaxget('/PageRank/ajaxsync.php?at=toolbox&iswords=' + iswords + '&addval=' + escape(val));
+    ajaxget('/ajaxsync.php?at=toolbox&iswords=' + iswords + '&addval=' + escape(val));
 }
 function ToolBoxDeleteValue(val) {
     BoxHide();
-    ajaxget('/PageRank/ajaxsync.php?at=toolbox&iswords=' + iswords + '&delval=' + escape(val));
+    ajaxget('/ajaxsync.php?at=toolbox&iswords=' + iswords + '&delval=' + escape(val));
 }
 function FillUrls(cookieName) {
     var urls = getcookie(cookieName);
