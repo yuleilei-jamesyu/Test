@@ -166,11 +166,15 @@ if(!empty($praddress)) {
                 </span>
                 <?php
                 if(!empty($praddress)) {
-                    $googlepagerankimg = 'Rank_' . $googlepagerankval . '.gif';
-                    $sougourankimg = 'sRank_' . $sougourankval . '.gif';
                     echo "<div id=\"pr_results\">\n";
-                    echo "<span id=\"pr\">Google <img src=\"images/ranks/$googlepagerankimg\" alt=\"Google PageRank\"></span>\n";
-                    echo "<span id=\"sougoupr\">搜狗 <img src=\"images/ranks/$sougourankimg\" alt=\"Sougou Rank\"></span>\n";
+                    if($googlepagerankval >= 0) {
+                        $googlepagerankimg = 'Rank_' . $googlepagerankval . '.gif';
+                        echo "<span id=\"pr\">Google <img src=\"images/ranks/$googlepagerankimg\" alt=\"Google PageRank\"></span>\n";
+                    }
+                    if($sougourankval >= 0) {
+                        $sougourankimg = 'sRank_' . $sougourankval . '.gif';
+                        echo "<span id=\"sougoupr\">搜狗 <img src=\"images/ranks/$sougourankimg\" alt=\"Sougou Rank\"></span>\n";
+                    }
                     echo "</div>\n";
                 }
                 ?>
