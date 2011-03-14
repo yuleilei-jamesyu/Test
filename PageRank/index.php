@@ -197,9 +197,7 @@ if(!empty($praddress)) {
         </div>
         <div class="interval"></div>
         <div class="bot-nav">
-            <a target="_blank" href="#">联系我们</a>
-            |
-            <a target="_blank" href="#">版权声明</a>
+            仅供测试、学习使用
         </div>
         <div class="foot">
         <?php
