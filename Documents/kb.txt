@@ -1,0 +1,7 @@
+1、使用Shell、Perl和Python编写脚本进行和MySQL、Oracle相关的数据处理和报表邮件的生成。
+2、Ubuntu、FreeBSD、RHEL和CentOS等Linux平台的日常操作。
+3、对Linux平台下WEB系统搭建知识的掌握。
+4、使用PHP+Smarty进行iKbase的日常维护和新模块开发工作。
+5、SQLPLUS的使用。
+6、Emacs和VIM等编辑器的使用。
+7、使用LAMP架构的网站优化。
