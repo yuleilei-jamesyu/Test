@@ -1,7 +1,8 @@
 1、使用Shell、Perl和Python编写脚本操作和MySQL、Oracle相关的数据处理和报表邮件的生成。
 2、Ubuntu、FreeBSD、RHEL和CentOS等Linux OS的日常操作和管理。
-3、Linux下WEB服务端架构的搭建。
-4、使用PHP+Smarty维护Cisco Ironport iKbase。
-5、RHEL下SQLPLUS的使用
-6、Emacs和VIM等Linux下开发工具的使用。
-7、基于LAMP架构的网站优化。
+3、LAMP架构的搭建和优化。
+4、基于LAMP架构网站的SEO优化。
+5、使用PHP+Smarty维护Cisco Ironport iKbase。
+6、Ubuntu下Flex程序的开发。
+7、RHEL下SQLPLUS的使用
+8、Emacs和VIM等Linux下开发工具的使用。
